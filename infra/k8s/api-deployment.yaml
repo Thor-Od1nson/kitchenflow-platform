@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kitchenflow-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kitchenflow-api
+  template:
+    metadata:
+      labels:
+        app: kitchenflow-api
+    spec:
+      containers:
+        - name: api
+          image: kitchenflow/api:latest
+          ports:
+            - containerPort: 4000
+          envFrom:
+            - secretRef:
+                name: kitchenflow-api-secrets
+          readinessProbe:
+            httpGet:
+              path: /v1/health
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 15

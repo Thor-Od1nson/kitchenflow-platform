@@ -1,0 +1,19 @@
+{
+  "name": "kitchenflow-commerce",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --filter @kitchenflow/web dev",
+    "dev:api": "pnpm --filter @kitchenflow/api start:dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@kitchenflow/config": "workspace:*",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}

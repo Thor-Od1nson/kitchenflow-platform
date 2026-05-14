@@ -1,0 +1,47 @@
+{
+  "extends": "../../packages/config/tsconfig/base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@kitchenflow/ui": [
+        "../../packages/ui/src/index.ts"
+      ],
+      "@kitchenflow/ui/*": [
+        "../../packages/ui/src/*"
+      ],
+      "@kitchenflow/types": [
+        "../../packages/types/src/index.ts"
+      ],
+      "@kitchenflow/utils": [
+        "../../packages/utils/src/index.ts"
+      ]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "noEmit": true,
+    "incremental": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "jsx": "preserve"
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

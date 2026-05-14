@@ -1,0 +1,9 @@
+{
+  "name": "@kitchenflow/config",
+  "private": true,
+  "version": "0.1.0",
+  "exports": {
+    "./tailwind": "./tailwind.preset.ts",
+    "./tsconfig/base": "./tsconfig/base.json"
+  }
+}

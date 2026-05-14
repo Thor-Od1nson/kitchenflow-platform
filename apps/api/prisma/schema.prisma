@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  owner
+  admin
+  ops_manager
+  store_manager
+  chef
+  analyst
+}
+
+enum OrderStatus {
+  pending
+  accepted
+  preparing
+  dispatched
+  delivered
+  cancelled
+}
+
+enum IntegrationStatus {
+  connected
+  degraded
+  syncing
+  offline
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  passwordHash   String
+  fullName       String
+  role           Role         @default(store_manager)
+  restaurantId   String
+  restaurant     Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  refreshTokens  RefreshToken[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+}
+
+model Restaurant {
+  id           String          @id @default(cuid())
+  name         String
+  slug         String          @unique
+  plan         String          @default("enterprise")
+  users        User[]
+  outlets      Outlet[]
+  orders       Order[]
+  menuItems    MenuItem[]
+  integrations Integration[]
+  events       AnalyticsEvent[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model Outlet {
+  id           String          @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  city         String
+  timezone     String          @default("Asia/Kolkata")
+  orders       Order[]
+  inventory    InventoryItem[]
+  menuScopes   MenuOutletScope[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model Order {
+  id           String       @id @default(cuid())
+  publicId     String
+  restaurantId String
+  outletId     String
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  outlet       Outlet       @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  channel      String
+  status       OrderStatus  @default(pending)
+  customerName String
+  totalAmount  Int
+  currency     String       @default("INR")
+  payload      Json
+  etaMinutes   Int
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([restaurantId, status, createdAt])
+  @@index([outletId, createdAt])
+}
+
+model MenuItem {
+  id           String            @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  category     String
+  priceAmount  Int
+  currency     String            @default("INR")
+  available    Boolean           @default(true)
+  variants     Json
+  imageUrl     String?
+  outletScopes MenuOutletScope[]
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
+
+model MenuOutletScope {
+  menuItemId String
+  outletId   String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  outlet     Outlet   @relation(fields: [outletId], references: [id], onDelete: Cascade)
+
+  @@id([menuItemId, outletId])
+}
+
+model Integration {
+  id            String            @id @default(cuid())
+  restaurantId  String
+  restaurant    Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  provider      String
+  status        IntegrationStatus @default(syncing)
+  credentials   Json
+  webhookSecret String?
+  lastSyncAt    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([restaurantId, provider])
+}
+
+model InventoryItem {
+  id          String   @id @default(cuid())
+  outletId    String
+  outlet      Outlet   @relation(fields: [outletId], references: [id], onDelete: Cascade)
+  sku         String
+  name        String
+  unit        String
+  quantity    Decimal  @db.Decimal(12, 2)
+  reorderAt   Decimal  @db.Decimal(12, 2)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([outletId, sku])
+}
+
+model AnalyticsEvent {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  type         String
+  occurredAt   DateTime   @default(now())
+  dimensions   Json
+  metrics      Json
+
+  @@index([restaurantId, type, occurredAt])
+}
