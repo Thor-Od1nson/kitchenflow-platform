@@ -96,3 +96,98 @@ export interface MenuItem {
   variants: string[];
   imageUrl?: string;
 }
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface DashboardKpi {
+  label: string;
+  value: number;
+  unit: 'currency' | 'number' | 'minutes' | 'percent';
+  delta: number;
+  tone: 'good' | 'warning' | 'critical' | 'neutral';
+}
+
+export interface RevenuePoint {
+  day: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface ChannelBreakdown {
+  channel: Channel;
+  orders: number;
+  revenue: number;
+}
+
+export interface OutletPerformance {
+  outletId: string;
+  outlet: string;
+  city: string;
+  orders: number;
+  revenue: number;
+  uptime: number;
+}
+
+export interface InventoryWarning {
+  id: string;
+  outletId: string;
+  outletName: string;
+  sku: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  reorderAt: number;
+  stockPercent: number;
+}
+
+export interface AnalyticsSummary {
+  generatedAt: string;
+  kpis: DashboardKpi[];
+  totals: {
+    revenueToday: number;
+    ordersToday: number;
+    averagePrepTime: number;
+    cancellationRate: number;
+  };
+  orderStatus: Record<OrderStatus, number>;
+  revenueSeries: RevenuePoint[];
+  channelBreakdown: ChannelBreakdown[];
+  outletPerformance: OutletPerformance[];
+  integrationHealth: Array<{ status: string; count: number }>;
+  inventoryWarnings: InventoryWarning[];
+}
+
+export interface InventoryItem {
+  id: string;
+  outletId: string;
+  sku: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  reorderAt: number;
+  stockPercent: number;
+  risk: 'critical' | 'warning' | 'healthy';
+  updatedAt: string;
+}
+
+export interface InventoryResponse {
+  outlet: AuthOutlet;
+  items: InventoryItem[];
+}
+
+export interface DashboardIntegration {
+  id: string;
+  provider: Channel | string;
+  label: string;
+  status: 'connected' | 'degraded' | 'syncing' | 'offline';
+  lastSyncAt: string | null;
+  lastSync: string;
+  webhookHealth: number;
+  webhookSecretConfigured: boolean;
+}

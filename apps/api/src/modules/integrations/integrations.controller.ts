@@ -1,5 +1,6 @@
 import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RbacGuard } from '../../common/guards/rbac.guard';
 import { IntegrationsService } from './integrations.service';
@@ -11,8 +12,8 @@ export class IntegrationsController {
 
   @Get()
   @Roles('owner', 'admin', 'ops_manager')
-  list() {
-    return this.integrations.list();
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.integrations.list(user.restaurantId);
   }
 
   @Post(':provider/test')

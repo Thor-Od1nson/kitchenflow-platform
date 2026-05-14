@@ -23,13 +23,13 @@ export class OperationsGateway implements OnGatewayConnection {
 
   @SubscribeMessage('order.status.updated')
   broadcastOrderStatus(@MessageBody() body: { restaurantId: string; orderId: string; status: string }) {
-    this.server.to(`restaurant:${body.restaurantId}`).emit('order.status.updated', body);
+    this.emitOrderStatusUpdated(body);
     return { ok: true };
   }
 
   @SubscribeMessage('inventory.changed')
   broadcastInventory(@MessageBody() body: { restaurantId: string; outletId: string; sku: string; quantity: number }) {
-    this.server.to(`restaurant:${body.restaurantId}`).emit('inventory.changed', body);
+    this.emitInventoryChanged(body);
     return { ok: true };
   }
 
@@ -37,5 +37,17 @@ export class OperationsGateway implements OnGatewayConnection {
   joinNotifications(@ConnectedSocket() client: Socket, @MessageBody() body: { restaurantId: string }) {
     void client.join(`restaurant:${body.restaurantId}`);
     return { ok: true };
+  }
+
+  emitOrderCreated(body: { restaurantId: string; order: unknown }) {
+    this.server.to(`restaurant:${body.restaurantId}`).emit('order.created', body);
+  }
+
+  emitOrderStatusUpdated(body: { restaurantId: string; orderId: string; status: string; order?: unknown }) {
+    this.server.to(`restaurant:${body.restaurantId}`).emit('order.status.updated', body);
+  }
+
+  emitInventoryChanged(body: { restaurantId: string; outletId: string; sku: string; quantity: number; item?: unknown }) {
+    this.server.to(`restaurant:${body.restaurantId}`).emit('inventory.changed', body);
   }
 }

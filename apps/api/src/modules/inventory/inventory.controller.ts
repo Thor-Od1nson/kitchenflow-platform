@@ -1,5 +1,6 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RbacGuard } from '../../common/guards/rbac.guard';
 import { InventoryService } from './inventory.service';
@@ -11,7 +12,7 @@ export class InventoryController {
 
   @Get(':outletId')
   @Roles('owner', 'admin', 'ops_manager', 'store_manager')
-  list(@Param('outletId') outletId: string) {
-    return this.inventory.list(outletId);
+  list(@CurrentUser() user: AuthenticatedUser, @Param('outletId') outletId: string) {
+    return this.inventory.list(user.restaurantId, outletId);
   }
 }

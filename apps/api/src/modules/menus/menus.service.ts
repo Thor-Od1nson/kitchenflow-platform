@@ -8,7 +8,7 @@ export class MenusService {
   list(restaurantId: string) {
     return this.prisma.menuItem.findMany({
       where: { restaurantId },
-      include: { outletScopes: true },
+      include: { outletScopes: { include: { outlet: { select: { id: true, name: true, city: true } } } } },
       orderBy: [{ category: 'asc' }, { name: 'asc' }]
     });
   }

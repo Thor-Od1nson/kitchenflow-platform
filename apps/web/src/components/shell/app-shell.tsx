@@ -23,6 +23,7 @@ import {
 import { Button } from '@kitchenflow/ui';
 import type { Role } from '@kitchenflow/types';
 import { useAuth } from '@/components/auth/auth-provider';
+import { useOperationsSocket } from '@/hooks/use-operations-socket';
 import { useOpsStore } from '@/store/ops-store';
 
 const nav: Array<{ href: string; label: string; icon: typeof Home; roles: Role[] }> = [
@@ -40,18 +41,14 @@ const nav: Array<{ href: string; label: string; icon: typeof Home; roles: Role[]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { darkMode, toggleDarkMode, injectOrder } = useOpsStore();
+  const { darkMode, toggleDarkMode } = useOpsStore();
   const { user, logout } = useAuth();
   const visibleNav = nav.filter((item) => user && item.roles.includes(user.role));
+  useOperationsSocket();
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
-
-  useEffect(() => {
-    const interval = window.setInterval(injectOrder, 9000);
-    return () => window.clearInterval(interval);
-  }, [injectOrder]);
 
   return (
     <div className="min-h-screen bg-surface text-ink dark:bg-[#080b14] dark:text-white">

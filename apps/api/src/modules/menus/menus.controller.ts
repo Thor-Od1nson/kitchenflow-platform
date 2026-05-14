@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RbacGuard } from '../../common/guards/rbac.guard';
 import { MenusService } from './menus.service';
@@ -11,8 +12,8 @@ export class MenusController {
 
   @Get()
   @Roles('owner', 'admin', 'ops_manager', 'store_manager')
-  list(@Query('restaurantId') restaurantId: string) {
-    return this.menus.list(restaurantId);
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.menus.list(user.restaurantId);
   }
 
   @Patch('availability')

@@ -1,5 +1,6 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RbacGuard } from '../../common/guards/rbac.guard';
 import { AnalyticsService } from './analytics.service';
@@ -11,7 +12,7 @@ export class AnalyticsController {
 
   @Get('summary')
   @Roles('owner', 'admin', 'ops_manager', 'analyst')
-  summary(@Query('restaurantId') restaurantId: string) {
-    return this.analytics.summary(restaurantId);
+  summary(@CurrentUser() user: AuthenticatedUser) {
+    return this.analytics.summary(user.restaurantId);
   }
 }
