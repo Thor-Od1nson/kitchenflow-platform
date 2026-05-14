@@ -1,11 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
+import type { Role } from '@kitchenflow/types';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(config: ConfigService) {
+  constructor(
+    config: ConfigService,
+    private readonly prisma: PrismaService
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -13,7 +18,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: { sub: string; restaurantId: string; role: string }) {
-    return { userId: payload.sub, restaurantId: payload.restaurantId, role: payload.role };
+  async validate(payload: { sub: string; restaurantId: string; role: Role }) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, restaurantId: true, role: true }
+    });
+    if (!user || user.restaurantId !== payload.restaurantId || user.role !== payload.role) {
+      throw new UnauthorizedException('Invalid access token');
+    }
+    return { userId: user.id, restaurantId: user.restaurantId, role: user.role };
   }
 }

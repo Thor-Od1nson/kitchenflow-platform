@@ -43,7 +43,7 @@ export const useOpsStore = create<OpsStore>((set) => ({
           publicId: `#LIVE-${Math.floor(Math.random() * 90000 + 10000)}`,
           customerName: ['Nisha Rao', 'Dev Malhotra', 'Anika Sen'][Math.floor(Math.random() * 3)],
           placedAt: 'just now',
-          status: 'pending'
+          status: 'pending' as OrderStatus
         },
         ...state.orders
       ].slice(0, 12)

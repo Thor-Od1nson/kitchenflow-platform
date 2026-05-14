@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -9,6 +10,7 @@ import {
   ChevronDown,
   Command,
   Home,
+  LogOut,
   MenuSquare,
   Moon,
   Plug,
@@ -19,10 +21,11 @@ import {
   Utensils
 } from 'lucide-react';
 import { Button } from '@kitchenflow/ui';
+import type { Role } from '@kitchenflow/types';
+import { useAuth } from '@/components/auth/auth-provider';
 import { useOpsStore } from '@/store/ops-store';
-import { useEffect } from 'react';
 
-const nav = [
+const nav: Array<{ href: string; label: string; icon: typeof Home; roles: Role[] }> = [
   { href: '/dashboard', label: 'Overview', icon: Home, roles: ['owner', 'admin', 'ops_manager'] },
   { href: '/dashboard/orders', label: 'Orders', icon: Command, roles: ['owner', 'admin', 'ops_manager', 'store_manager', 'chef'] },
   { href: '/dashboard/menus', label: 'Menus', icon: MenuSquare, roles: ['owner', 'admin', 'ops_manager', 'store_manager'] },
@@ -38,6 +41,8 @@ const nav = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { darkMode, toggleDarkMode, injectOrder } = useOpsStore();
+  const { user, logout } = useAuth();
+  const visibleNav = nav.filter((item) => user && item.roles.includes(user.role));
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -58,16 +63,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           KitchenFlow
         </Link>
         <div className="mt-6 rounded-2xl border border-line bg-surface p-3 dark:border-white/10 dark:bg-white/5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-bold">Northstar Foods</p>
-              <p className="text-xs text-muted">42 outlets · Owner</p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold">{user?.restaurant.name}</p>
+              <p className="truncate text-xs text-muted">
+                {user?.restaurant.outlets.length ?? 0} outlets - {user?.role.replace('_', ' ')}
+              </p>
             </div>
-            <ChevronDown className="size-4 text-muted" />
+            <ChevronDown className="size-4 shrink-0 text-muted" />
           </div>
         </div>
         <nav className="mt-6 space-y-1">
-          {nav.map((item) => {
+          {visibleNav.map((item) => {
             const active = pathname === item.href;
             return (
               <Link
@@ -85,6 +92,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+        <div className="absolute inset-x-4 bottom-5">
+          <div className="mb-3 rounded-2xl border border-line bg-surface p-3 dark:border-white/10 dark:bg-white/5">
+            <p className="truncate text-sm font-bold">{user?.fullName}</p>
+            <p className="truncate text-xs text-muted">{user?.email}</p>
+          </div>
+          <Button className="w-full justify-start" variant="secondary" size="sm" onClick={logout}>
+            <LogOut className="size-4" />
+            Logout
+          </Button>
+        </div>
       </aside>
 
       <div className="lg:pl-72">
@@ -100,6 +117,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Button variant="secondary" size="sm" onClick={toggleDarkMode} aria-label="Toggle dark mode">
               <Moon className="size-4" />
             </Button>
+            <div className="hidden min-w-0 text-right md:block">
+              <p className="truncate text-sm font-bold">{user?.fullName}</p>
+              <p className="truncate text-xs text-muted">{user?.role.replace('_', ' ')}</p>
+            </div>
             <Button size="sm">New order</Button>
           </div>
         </header>

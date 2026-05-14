@@ -1,5 +1,37 @@
 export type Role = 'owner' | 'admin' | 'ops_manager' | 'store_manager' | 'chef' | 'analyst';
 
+export interface AuthOutlet {
+  id: string;
+  name: string;
+  city: string;
+}
+
+export interface AuthRestaurant {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  outlets: AuthOutlet[];
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: Role;
+  restaurantId: string;
+  restaurant: AuthRestaurant;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface AuthResponse extends AuthTokens {
+  user: AuthUser;
+}
+
 export type OrderStatus =
   | 'pending'
   | 'accepted'
