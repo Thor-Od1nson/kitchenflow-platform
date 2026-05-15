@@ -2,6 +2,7 @@
 
 import type {
   AnalyticsSummary,
+  AuditLogResponse,
   Channel,
   DashboardIntegration,
   InventoryResponse,
@@ -30,6 +31,7 @@ export interface CreateOrderInput {
   customerName: string;
   etaMinutes: number;
   items: Array<{ menuItemId: string; quantity: number }>;
+  clientMutationId?: string;
 }
 
 function cleanParams(query: OrdersQuery) {
@@ -43,8 +45,8 @@ export const dashboardApi = {
     const response = await apiClient.get<PaginatedResponse<Order>>('/orders', { params: cleanParams(query) });
     return response.data;
   },
-  async updateOrderStatus(orderId: string, status: OrderStatus) {
-    const response = await apiClient.patch<Order>(`/orders/${orderId}/status`, { status });
+  async updateOrderStatus(orderId: string, status: OrderStatus, expectedUpdatedAt?: string) {
+    const response = await apiClient.patch<Order>(`/orders/${orderId}/status`, { status, expectedUpdatedAt });
     return response.data;
   },
   async createOrder(input: CreateOrderInput) {
@@ -57,6 +59,10 @@ export const dashboardApi = {
   },
   async activity() {
     const response = await apiClient.get<OperationalActivity[]>('/analytics/activity');
+    return response.data;
+  },
+  async audit(query: { page?: number; limit?: number; query?: string; action?: string; outletId?: string; entityType?: string } = {}) {
+    const response = await apiClient.get<AuditLogResponse>('/audit', { params: cleanParams(query) });
     return response.data;
   },
   async integrations() {

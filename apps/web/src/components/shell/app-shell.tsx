@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   BarChart3,
   Bell,
+  ClipboardList,
   Boxes,
   ChevronDown,
   Command,
@@ -37,6 +38,7 @@ const nav: Array<{ href: string; label: string; icon: typeof Home; roles: Role[]
   { href: '/dashboard/customers', label: 'Customers', icon: Users, roles: ['owner', 'manager', 'support'] },
   { href: '/dashboard/stores', label: 'Stores', icon: Store, roles: ['owner', 'manager'] },
   { href: '/dashboard/notifications', label: 'Notifications', icon: Bell, roles: ['owner', 'manager', 'support'] },
+  { href: '/dashboard/audit', label: 'Audit log', icon: ClipboardList, roles: ['owner', 'manager', 'support'] },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['owner'] }
 ];
 
@@ -44,6 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { darkMode, toggleDarkMode } = useOpsStore();
   const notifications = useOpsStore((state) => state.notifications);
+  const socketStatus = useOpsStore((state) => state.socketStatus);
   const dismissNotification = useOpsStore((state) => state.dismissNotification);
   const { user, logout } = useAuth();
 
@@ -165,6 +168,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {user?.role?.replace('_', ' ') ?? 'user'}
               </p>
             </div>
+
+            {socketStatus !== 'connected' ? (
+              <span className="hidden rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 md:inline-flex">
+                {socketStatus === 'reconnecting' ? 'Reconnecting' : 'Offline'}
+              </span>
+            ) : null}
 
             {user && ['owner', 'manager', 'kitchen'].includes(user.role) ? (
               <Link href="/dashboard/orders">

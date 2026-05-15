@@ -7,12 +7,14 @@ import { orders } from '@/lib/data';
 interface OpsStore {
   darkMode: boolean;
   notifications: OperationsNotification[];
+  socketStatus: 'idle' | 'connected' | 'reconnecting' | 'disconnected';
   orders: Order[];
   query: string;
   status: OrderStatus | 'all';
   toggleDarkMode: () => void;
   addNotification: (notification: Omit<OperationsNotification, 'id' | 'createdAt'> & { id?: string; createdAt?: string }) => void;
   dismissNotification: (id: string) => void;
+  setSocketStatus: (status: OpsStore['socketStatus']) => void;
   clearNotifications: () => void;
   setQuery: (query: string) => void;
   setStatus: (status: OrderStatus | 'all') => void;
@@ -25,6 +27,7 @@ const flow: OrderStatus[] = ['pending', 'accepted', 'preparing', 'dispatched', '
 export const useOpsStore = create<OpsStore>((set) => ({
   darkMode: false,
   notifications: [],
+  socketStatus: 'idle',
   orders,
   query: '',
   status: 'all',
@@ -44,6 +47,7 @@ export const useOpsStore = create<OpsStore>((set) => ({
     set((state) => ({
       notifications: state.notifications.filter((notification) => notification.id !== id)
     })),
+  setSocketStatus: (socketStatus) => set({ socketStatus }),
   clearNotifications: () => set({ notifications: [] }),
   setQuery: (query) => set({ query }),
   setStatus: (status) => set({ status }),

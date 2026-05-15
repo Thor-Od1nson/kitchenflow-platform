@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator';
+import { CorrelationId } from '../../common/decorators/correlation-id.decorator';
 import { AuthService } from './auth.service';
 import { LoginDto, LogoutDto, RefreshDto } from './dto';
 
@@ -9,8 +10,8 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto);
+  login(@Body() dto: LoginDto, @CorrelationId() correlationId?: string) {
+    return this.auth.login(dto, correlationId);
   }
 
   @Post('refresh')
@@ -19,8 +20,8 @@ export class AuthController {
   }
 
   @Post('logout')
-  logout(@Body() dto: LogoutDto) {
-    return this.auth.logout(dto.refreshToken);
+  logout(@Body() dto: LogoutDto, @CorrelationId() correlationId?: string) {
+    return this.auth.logout(dto.refreshToken, correlationId);
   }
 
   @Get('me')

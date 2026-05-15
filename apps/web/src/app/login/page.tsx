@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, Loader2, LogIn, Utensils } from 'lucide-react';
 import { Button, Card, Input } from '@kitchenflow/ui';
@@ -8,10 +8,15 @@ import { useAuth } from '@/components/auth/auth-provider';
 
 export default function LoginPage() {
   const { login, isLoading } = useAuth();
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [email, setEmail] = useState('owner@kitchenflow.dev');
   const [password, setPassword] = useState('Password123!');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setSessionExpired(new URLSearchParams(window.location.search).get('reason') === 'session-expired');
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,6 +78,13 @@ export default function LoginPage() {
                 required
               />
             </label>
+
+            {sessionExpired ? (
+              <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+                <AlertCircle className="size-4" />
+                Session expired. Sign in again to continue.
+              </div>
+            ) : null}
 
             {error ? (
               <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">

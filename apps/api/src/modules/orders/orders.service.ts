@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Channel, Money, Order, OrderStatus } from '@kitchenflow/types';
+import { AuditService } from '../../common/audit/audit.service';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OperationsGateway } from '../../realtime/operations.gateway';
 import { CreateOrderDto, ListOrdersDto } from './dto';
@@ -8,7 +10,8 @@ import { CreateOrderDto, ListOrdersDto } from './dto';
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly operations: OperationsGateway
+    private readonly operations: OperationsGateway,
+    private readonly audit: AuditService
   ) {}
 
   async list(restaurantId: string, query: ListOrdersDto) {
@@ -53,9 +56,21 @@ export class OrdersService {
     };
   }
 
-  async create(restaurantId: string, dto: CreateOrderDto) {
+  async create(user: AuthenticatedUser, dto: CreateOrderDto, correlationId?: string) {
+    const restaurantId = user.restaurantId;
     if (!dto.items?.length) {
       throw new BadRequestException('Order must include at least one item');
+    }
+
+    if (dto.clientMutationId) {
+      const existing = await this.prisma.order.findFirst({
+        where: {
+          restaurantId,
+          payload: { path: ['clientMutationId'], equals: dto.clientMutationId }
+        },
+        include: { outlet: { select: { name: true, city: true } } }
+      });
+      if (existing) return this.serializeOrder(existing);
     }
 
     const outlet = await this.prisma.outlet.findFirst({
@@ -96,7 +111,7 @@ export class OrdersService {
         totalAmount,
         currency: menuItems[0]?.currency ?? 'INR',
         etaMinutes: dto.etaMinutes,
-        payload: { items: lines, source: 'manual' }
+        payload: { items: lines, source: 'manual', clientMutationId: dto.clientMutationId }
       },
       include: { outlet: { select: { name: true, city: true } } }
     });
@@ -110,13 +125,29 @@ export class OrdersService {
         metrics: { orderId: created.id, publicId: created.publicId, detail: `${created.publicId} created for ${created.customerName}` }
       }
     });
+    await this.audit.record({
+      restaurantId,
+      actorUserId: user.userId,
+      actorRole: user.role,
+      action: 'order.created',
+      entityType: 'order',
+      entityId: created.id,
+      outletId: outlet.id,
+      outletName: outlet.name,
+      metadata: { publicId: created.publicId, channel: dto.channel, totalAmount },
+      correlationId
+    });
     this.operations.emitOrderCreated({ restaurantId, order: serialized });
     return serialized;
   }
 
-  async updateStatus(restaurantId: string, id: string, status: OrderStatus) {
+  async updateStatus(user: AuthenticatedUser, id: string, status: OrderStatus, expectedUpdatedAt?: string, correlationId?: string) {
+    const restaurantId = user.restaurantId;
     const order = await this.prisma.order.findFirst({ where: { id, restaurantId } });
     if (!order) throw new NotFoundException('Order not found');
+    if (expectedUpdatedAt && order.updatedAt.toISOString() !== expectedUpdatedAt) {
+      throw new BadRequestException('Order changed since it was last loaded. Refresh and try again.');
+    }
     this.assertValidTransition(order.status, status);
     const previousStatus = order.status;
     const now = new Date();
@@ -133,6 +164,18 @@ export class OrdersService {
         dimensions: { outletId: updated.outletId, outlet: updated.outlet.name, channel: updated.channel },
         metrics: { orderId: id, publicId: updated.publicId, from: previousStatus, to: status, detail: `${updated.publicId} moved from ${previousStatus} to ${status}` }
       }
+    });
+    await this.audit.record({
+      restaurantId,
+      actorUserId: user.userId,
+      actorRole: user.role,
+      action: 'order.status_changed',
+      entityType: 'order',
+      entityId: id,
+      outletId: updated.outletId,
+      outletName: updated.outlet.name,
+      metadata: { publicId: updated.publicId, from: previousStatus, to: status },
+      correlationId
     });
     this.operations.emitOrderStatusUpdated({
       restaurantId,

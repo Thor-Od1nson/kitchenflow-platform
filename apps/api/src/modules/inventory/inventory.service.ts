@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { InventoryActivity, InventoryItem } from '@kitchenflow/types';
+import { AuditService } from '../../common/audit/audit.service';
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OperationsGateway } from '../../realtime/operations.gateway';
 import { AdjustInventoryDto } from './dto';
@@ -8,7 +10,8 @@ import { AdjustInventoryDto } from './dto';
 export class InventoryService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly operations: OperationsGateway
+    private readonly operations: OperationsGateway,
+    private readonly audit: AuditService
   ) {}
 
   async listDefault(restaurantId: string) {
@@ -47,23 +50,32 @@ export class InventoryService {
     };
   }
 
-  async adjust(restaurantId: string, outletId: string, itemId: string, dto: AdjustInventoryDto) {
-    const item = await this.prisma.inventoryItem.findFirst({
-      where: { id: itemId, outletId, outlet: { restaurantId } }
-    });
-    if (!item) throw new NotFoundException('Inventory item not found');
+  async adjust(user: AuthenticatedUser, outletId: string, itemId: string, dto: AdjustInventoryDto, correlationId?: string) {
+    const restaurantId = user.restaurantId;
+    const { updated, activity, outletName } = await this.prisma.$transaction(async (tx) => {
+      const item = await tx.inventoryItem.findFirst({
+        where: { id: itemId, outletId, outlet: { restaurantId } },
+        include: { outlet: { select: { name: true } } }
+      });
+      if (!item) throw new NotFoundException('Inventory item not found');
 
-    const nextQuantity = Number(item.quantity) + dto.delta;
-    if (nextQuantity < 0) {
-      throw new BadRequestException('Inventory quantity cannot go below zero');
-    }
+      if (Number(item.quantity) + dto.delta < 0) {
+        throw new BadRequestException('Inventory quantity cannot go below zero');
+      }
 
-    const [updated, activity] = await this.prisma.$transaction([
-      this.prisma.inventoryItem.update({
-        where: { id: item.id },
-        data: { quantity: nextQuantity }
-      }),
-      this.prisma.inventoryActivity.create({
+      const updatedCount = await tx.inventoryItem.updateMany({
+        where: {
+          id: item.id,
+          ...(dto.delta < 0 ? { quantity: { gte: Math.abs(dto.delta) } } : {})
+        },
+        data: { quantity: { increment: dto.delta } }
+      });
+      if (updatedCount.count !== 1) {
+        throw new BadRequestException('Inventory quantity cannot go below zero');
+      }
+      const updatedItem = await tx.inventoryItem.findUniqueOrThrow({ where: { id: item.id } });
+      const nextQuantity = Number(updatedItem.quantity);
+      const createdActivity = await tx.inventoryActivity.create({
         data: {
           outletId,
           sku: item.sku,
@@ -72,8 +84,10 @@ export class InventoryService {
           reason: dto.reason,
           quantityAfter: nextQuantity
         }
-      })
-    ]);
+      });
+
+      return { updated: updatedItem, activity: createdActivity, outletName: item.outlet.name };
+    });
 
     const serialized = this.serializeItem(updated);
     const serializedActivity = this.serializeActivity(activity);
@@ -89,6 +103,24 @@ export class InventoryService {
           detail: `${updated.name} adjusted by ${dto.delta} ${updated.unit}; now ${serialized.quantity}`
         }
       }
+    });
+    await this.audit.record({
+      restaurantId,
+      actorUserId: user.userId,
+      actorRole: user.role,
+      action: serialized.risk === 'critical' ? 'inventory.low_stock' : 'inventory.adjusted',
+      entityType: 'inventory_item',
+      entityId: updated.id,
+      outletId,
+      outletName,
+      metadata: {
+        sku: updated.sku,
+        name: updated.name,
+        delta: dto.delta,
+        quantityAfter: serialized.quantity,
+        reason: dto.reason
+      },
+      correlationId
     });
     this.operations.emitInventoryChanged({
       restaurantId,

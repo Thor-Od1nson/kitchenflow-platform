@@ -44,6 +44,10 @@ export class ListOrdersDto {
 export class UpdateOrderStatusDto {
   @IsIn(['pending', 'accepted', 'preparing', 'dispatched', 'delivered', 'cancelled'])
   status!: OrderStatus;
+
+  @IsOptional()
+  @IsString()
+  expectedUpdatedAt?: string;
 }
 
 export class CreateOrderLineDto {
@@ -78,4 +82,8 @@ export class CreateOrderDto {
   @ValidateNested({ each: true })
   @Type(() => CreateOrderLineDto)
   items!: CreateOrderLineDto[];
+
+  @IsOptional()
+  @IsString()
+  clientMutationId?: string;
 }

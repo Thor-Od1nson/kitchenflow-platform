@@ -64,8 +64,29 @@ model Restaurant {
   menuItems    MenuItem[]
   integrations Integration[]
   events       AnalyticsEvent[]
+  auditLogs    AuditLog[]
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
+}
+
+model AuditLog {
+  id            String     @id @default(cuid())
+  restaurantId  String
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  actorUserId   String?
+  actorRole     Role?
+  action        String
+  entityType    String
+  entityId      String?
+  outletId      String?
+  outletName    String?
+  metadata      Json
+  correlationId String?
+  createdAt     DateTime   @default(now())
+
+  @@index([restaurantId, createdAt])
+  @@index([restaurantId, action, createdAt])
+  @@index([restaurantId, entityType, entityId])
 }
 
 model Outlet {

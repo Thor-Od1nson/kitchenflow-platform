@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { CorrelationId } from '../../common/decorators/correlation-id.decorator';
 import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RbacGuard } from '../../common/guards/rbac.guard';
@@ -29,8 +30,9 @@ export class InventoryController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('outletId') outletId: string,
     @Param('itemId') itemId: string,
-    @Body() dto: AdjustInventoryDto
+    @Body() dto: AdjustInventoryDto,
+    @CorrelationId() correlationId?: string
   ) {
-    return this.inventory.adjust(user.restaurantId, outletId, itemId, dto);
+    return this.inventory.adjust(user, outletId, itemId, dto, correlationId);
   }
 }

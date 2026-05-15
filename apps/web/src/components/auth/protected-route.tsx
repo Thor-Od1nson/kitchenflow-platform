@@ -16,6 +16,7 @@ const routeRoles: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: '/dashboard/analytics', roles: ['owner', 'manager', 'support'] },
   { prefix: '/dashboard/customers', roles: ['owner', 'manager', 'support'] },
   { prefix: '/dashboard/notifications', roles: ['owner', 'manager', 'support'] },
+  { prefix: '/dashboard/audit', roles: ['owner', 'manager', 'support'] },
   { prefix: '/dashboard', roles: ['owner', 'manager'] }
 ];
 

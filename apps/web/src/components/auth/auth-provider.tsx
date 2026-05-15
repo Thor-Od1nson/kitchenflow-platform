@@ -16,6 +16,7 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -80,6 +81,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [clearSession, refreshSession]);
 
+  useEffect(() => {
+    function handleSessionExpired() {
+      clearSession();
+      router.replace('/login?reason=session-expired');
+    }
+
+    window.addEventListener('kitchenflow:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('kitchenflow:session-expired', handleSessionExpired);
+  }, [clearSession, router]);
+
   const login = useCallback(
     async (email: string, password: string) => {
       const session = await authApi.login(email, password);
@@ -107,6 +118,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.replace('/dashboard');
     }
   }, [isLoading, pathname, router, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let lastActivity = Date.now();
+    const markActivity = () => {
+      lastActivity = Date.now();
+    };
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastActivity > INACTIVITY_LIMIT_MS) {
+        void logout();
+      }
+    }, 60_000);
+    window.addEventListener('keydown', markActivity);
+    window.addEventListener('pointerdown', markActivity);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('keydown', markActivity);
+      window.removeEventListener('pointerdown', markActivity);
+    };
+  }, [logout, user]);
 
   const value = useMemo(
     () => ({ user, tokens, isLoading, login, logout, refreshSession }),

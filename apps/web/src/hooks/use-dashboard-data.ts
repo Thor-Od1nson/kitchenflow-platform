@@ -24,6 +24,13 @@ export function useActivity() {
   });
 }
 
+export function useAudit(query: { page?: number; limit?: number; query?: string; action?: string; outletId?: string; entityType?: string }) {
+  return useQuery({
+    queryKey: ['audit', query],
+    queryFn: () => dashboardApi.audit(query)
+  });
+}
+
 export function useIntegrations() {
   return useQuery({
     queryKey: ['integrations'],

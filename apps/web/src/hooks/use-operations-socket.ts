@@ -20,6 +20,7 @@ export function useOperationsSocket() {
   const { tokens, user } = useAuth();
   const queryClient = useQueryClient();
   const addNotification = useOpsStore((state) => state.addNotification);
+  const setSocketStatus = useOpsStore((state) => state.setSocketStatus);
   const restaurantId = user?.restaurantId ?? getRestaurantIdFromToken(tokens?.accessToken);
 
   useEffect(() => {
@@ -34,7 +35,16 @@ export function useOperationsSocket() {
     });
 
     const joinRoom = () => {
+      setSocketStatus('connected');
       socket.emit('notifications.join', { restaurantId });
+    };
+
+    const handleDisconnect = () => {
+      setSocketStatus('disconnected');
+    };
+
+    const handleReconnectAttempt = () => {
+      setSocketStatus('reconnecting');
     };
 
     const refetchOperations = () => {
@@ -107,6 +117,8 @@ export function useOperationsSocket() {
     };
 
     socket.on('connect', joinRoom);
+    socket.on('disconnect', handleDisconnect);
+    socket.io.on('reconnect_attempt', handleReconnectAttempt);
     socket.on('order.created', handleOrderCreated);
     socket.on('order.status.updated', handleOrderStatusUpdated);
     socket.on('inventory.changed', handleInventoryChanged);
@@ -115,12 +127,15 @@ export function useOperationsSocket() {
 
     return () => {
       socket.off('connect', joinRoom);
+      socket.off('disconnect', handleDisconnect);
+      socket.io.off('reconnect_attempt', handleReconnectAttempt);
       socket.off('order.created', handleOrderCreated);
       socket.off('order.status.updated', handleOrderStatusUpdated);
       socket.off('inventory.changed', handleInventoryChanged);
       socket.disconnect();
+      setSocketStatus('idle');
     };
-  }, [addNotification, queryClient, restaurantId, tokens?.accessToken]);
+  }, [addNotification, queryClient, restaurantId, setSocketStatus, tokens?.accessToken]);
 }
 
 function getRestaurantIdFromToken(token?: string) {

@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { CorrelationId } from '../../common/decorators/correlation-id.decorator';
 import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RbacGuard } from '../../common/guards/rbac.guard';
@@ -19,13 +20,13 @@ export class OrdersController {
 
   @Post()
   @Roles('owner', 'manager', 'kitchen')
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateOrderDto) {
-    return this.orders.create(user.restaurantId, dto);
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateOrderDto, @CorrelationId() correlationId?: string) {
+    return this.orders.create(user, dto, correlationId);
   }
 
   @Patch(':id/status')
   @Roles('owner', 'manager', 'kitchen')
-  updateStatus(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: UpdateOrderStatusDto) {
-    return this.orders.updateStatus(user.restaurantId, id, dto.status);
+  updateStatus(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: UpdateOrderStatusDto, @CorrelationId() correlationId?: string) {
+    return this.orders.updateStatus(user, id, dto.status, dto.expectedUpdatedAt, correlationId);
   }
 }

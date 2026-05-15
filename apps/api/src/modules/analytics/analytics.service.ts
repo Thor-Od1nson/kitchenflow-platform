@@ -53,6 +53,10 @@ export class AnalyticsService {
     const totalRevenue = todayOrders.reduce((sum, order) => sum + order.totalAmount, 0);
     const cancelled = todayOrders.filter((order) => order.status === 'cancelled').length;
     const activeOrders = todayOrders.filter((order) => !['delivered', 'cancelled'].includes(order.status));
+    const slaBreaches = activeOrders.filter((order) => now.getTime() - order.createdAt.getTime() > order.etaMinutes * 60_000).length;
+    const averageQueueLatencyMinutes = activeOrders.length
+      ? Math.round(activeOrders.reduce((sum, order) => sum + (now.getTime() - order.createdAt.getTime()) / 60_000, 0) / activeOrders.length)
+      : 0;
     const avgPrepTime =
       todayOrders.length > 0
         ? Math.round(todayOrders.reduce((sum, order) => sum + order.etaMinutes, 0) / todayOrders.length)
@@ -77,6 +81,12 @@ export class AnalyticsService {
         ordersToday: todayOrders.length,
         averagePrepTime: avgPrepTime,
         cancellationRate: todayOrders.length ? Number(((cancelled / todayOrders.length) * 100).toFixed(1)) : 0
+      },
+      operational: {
+        activeKitchenLoad: activeOrders.length,
+        averageQueueLatencyMinutes,
+        slaBreaches,
+        inventoryRiskItems: inventoryItems.filter((item) => Number(item.quantity) <= Number(item.reorderAt) * 1.4).length
       },
       orderStatus: this.countByStatus(todayOrders.map((order) => order.status)),
       revenueSeries: this.buildRevenueSeries(weekOrders, weekStart),

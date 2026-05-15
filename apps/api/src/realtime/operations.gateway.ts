@@ -12,6 +12,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 import type { Role } from '@kitchenflow/types';
 import type { InventoryChangedEvent, OrderCreatedEvent, OrderStatusUpdatedEvent } from '@kitchenflow/types';
+import { ObservabilityService } from '../common/observability/observability.service';
 
 interface SocketAuthPayload {
   sub: string;
@@ -29,7 +30,8 @@ export class OperationsGateway implements OnGatewayConnection, OnGatewayDisconne
 
   constructor(
     private readonly jwt: JwtService,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
+    private readonly observability: ObservabilityService
   ) {}
 
   async handleConnection(client: Socket) {
@@ -37,6 +39,7 @@ export class OperationsGateway implements OnGatewayConnection, OnGatewayDisconne
     const requestedRestaurantId = client.handshake.auth.restaurantId;
 
     if (typeof token !== 'string') {
+      this.observability.recordSocketRejected();
       client.disconnect(true);
       return;
     }
@@ -46,31 +49,35 @@ export class OperationsGateway implements OnGatewayConnection, OnGatewayDisconne
         secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET')
       });
       if (typeof requestedRestaurantId === 'string' && requestedRestaurantId !== payload.restaurantId) {
+        this.observability.recordSocketRejected();
         client.disconnect(true);
         return;
       }
       client.data.restaurantId = payload.restaurantId;
       client.data.role = payload.role;
       void client.join(this.restaurantRoom(payload.restaurantId));
+      this.observability.recordSocketConnected();
     } catch {
+      this.observability.recordSocketRejected();
       client.disconnect(true);
     }
   }
 
   handleDisconnect(client: Socket) {
+    if (client.data.restaurantId) {
+      this.observability.recordSocketDisconnected();
+    }
     client.removeAllListeners();
   }
 
   @SubscribeMessage('order.status.updated')
-  broadcastOrderStatus(@MessageBody() body: OrderStatusUpdatedEvent) {
-    this.emitOrderStatusUpdated(body);
-    return { ok: true };
+  broadcastOrderStatus() {
+    return { ok: false, message: 'Server-side order mutations publish realtime events.' };
   }
 
   @SubscribeMessage('inventory.changed')
-  broadcastInventory(@MessageBody() body: InventoryChangedEvent) {
-    this.emitInventoryChanged(body);
-    return { ok: true };
+  broadcastInventory() {
+    return { ok: false, message: 'Server-side inventory mutations publish realtime events.' };
   }
 
   @SubscribeMessage('notifications.join')
@@ -83,14 +90,17 @@ export class OperationsGateway implements OnGatewayConnection, OnGatewayDisconne
   }
 
   emitOrderCreated(body: OrderCreatedEvent) {
+    this.observability.recordSocketEmission();
     this.server.to(this.restaurantRoom(body.restaurantId)).emit('order.created', body);
   }
 
   emitOrderStatusUpdated(body: OrderStatusUpdatedEvent) {
+    this.observability.recordSocketEmission();
     this.server.to(this.restaurantRoom(body.restaurantId)).emit('order.status.updated', body);
   }
 
   emitInventoryChanged(body: InventoryChangedEvent) {
+    this.observability.recordSocketEmission();
     this.server.to(this.restaurantRoom(body.restaurantId)).emit('inventory.changed', body);
   }
 

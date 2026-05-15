@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Role } from '@kitchenflow/types';
 import * as bcrypt from 'bcryptjs';
+import { AuditService } from '../../common/audit/audit.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto';
 
@@ -17,12 +18,25 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
+    private readonly audit: AuditService
   ) {}
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, correlationId?: string) {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+      if (user) {
+        await this.audit.record({
+          restaurantId: user.restaurantId,
+          actorUserId: user.id,
+          actorRole: user.role,
+          action: 'auth.failed',
+          entityType: 'user',
+          entityId: user.id,
+          metadata: { email: dto.email },
+          correlationId
+        });
+      }
       throw new UnauthorizedException('Invalid credentials');
     }
     await this.prisma.analyticsEvent.create({
@@ -32,6 +46,16 @@ export class AuthService {
         dimensions: { actorId: user.id },
         metrics: { detail: `${user.fullName} signed in` }
       }
+    });
+    await this.audit.record({
+      restaurantId: user.restaurantId,
+      actorUserId: user.id,
+      actorRole: user.role,
+      action: 'auth.login',
+      entityType: 'user',
+      entityId: user.id,
+      metadata: { email: user.email },
+      correlationId
     });
     return this.issueTokens(user.id, user.restaurantId, user.role);
   }
@@ -59,7 +83,7 @@ export class AuthService {
     return this.issueTokens(payload.sub, payload.restaurantId, payload.role);
   }
 
-  async logout(refreshToken: string) {
+  async logout(refreshToken: string, correlationId?: string) {
     const payload = await this.verifyRefreshToken(refreshToken);
     const tokens = await this.prisma.refreshToken.findMany({
       where: {
@@ -81,6 +105,16 @@ export class AuthService {
         dimensions: { actorId: payload.sub },
         metrics: { detail: 'User signed out' }
       }
+    });
+    await this.audit.record({
+      restaurantId: payload.restaurantId,
+      actorUserId: payload.sub,
+      actorRole: payload.role,
+      action: 'auth.logout',
+      entityType: 'user',
+      entityId: payload.sub,
+      metadata: {},
+      correlationId
     });
     return { success: true };
   }

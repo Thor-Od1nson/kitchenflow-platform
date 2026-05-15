@@ -1,7 +1,7 @@
 'use client';
 
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
-import type { AuthResponse, AuthTokens } from '@kitchenflow/types';
+import type { ApiErrorResponse, AuthResponse, AuthTokens } from '@kitchenflow/types';
 import { clearStoredTokens, getStoredTokens, persistTokens } from './auth-storage';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/v1';
@@ -12,6 +12,14 @@ export const apiClient = axios.create({
 });
 
 let refreshPromise: Promise<AuthResponse> | null = null;
+let correlationSequence = 0;
+
+export function getApiErrorMessage(error: unknown) {
+  if (axios.isAxiosError<ApiErrorResponse>(error)) {
+    return error.response?.data?.message ?? error.message;
+  }
+  return error instanceof Error ? error.message : 'Something went wrong.';
+}
 
 function refreshTokens(refreshToken: string) {
   refreshPromise ??= axios
@@ -32,6 +40,7 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (tokens?.accessToken) {
     config.headers.Authorization = `Bearer ${tokens.accessToken}`;
   }
+  config.headers['x-correlation-id'] = `web-${Date.now()}-${correlationSequence++}`;
   return config;
 });
 
@@ -52,6 +61,7 @@ apiClient.interceptors.response.use(
       return apiClient(originalRequest);
     } catch (refreshError) {
       clearStoredTokens();
+      window.dispatchEvent(new Event('kitchenflow:session-expired'));
       return Promise.reject(refreshError);
     }
   }

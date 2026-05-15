@@ -184,6 +184,12 @@ export interface AnalyticsSummary {
     averagePrepTime: number;
     cancellationRate: number;
   };
+  operational: {
+    activeKitchenLoad: number;
+    averageQueueLatencyMinutes: number;
+    slaBreaches: number;
+    inventoryRiskItems: number;
+  };
   orderStatus: Record<OrderStatus, number>;
   revenueSeries: RevenuePoint[];
   channelBreakdown: ChannelBreakdown[];
@@ -250,6 +256,59 @@ export interface OperationalActivity {
   outletName?: string;
   actorId?: string;
   occurredAt: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  restaurantId: string;
+  actorUserId?: string | null;
+  actorRole?: Role | null;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  outletId?: string | null;
+  outletName?: string | null;
+  metadata: Record<string, unknown>;
+  correlationId?: string | null;
+  createdAt: string;
+}
+
+export interface AuditLogResponse {
+  items: AuditLogEntry[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface ApiErrorResponse {
+  success: false;
+  code: string;
+  message: string;
+  correlationId: string;
+}
+
+export interface OperationalMetrics {
+  generatedAt: string;
+  requests: {
+    total: number;
+    errors: number;
+    averageMs: number;
+  };
+  websocket: {
+    activeConnections: number;
+    totalConnections: number;
+    totalDisconnects: number;
+    emittedEvents: number;
+    rejectedConnections: number;
+  };
+  operations: {
+    ordersToday: number;
+    activeOrders: number;
+    averageQueueLatencyMinutes: number;
+    slaBreachesToday: number;
+    inventoryRiskItems: number;
+  };
 }
 
 export interface DashboardIntegration {

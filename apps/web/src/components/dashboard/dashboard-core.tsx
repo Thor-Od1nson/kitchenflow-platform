@@ -20,7 +20,8 @@ import type { Channel, InventoryItem, MenuItem, OperationalActivity, OperationsN
 import { formatMoney, percentage, statusCopy, statusTone } from '@kitchenflow/utils';
 import { useAuth } from '@/components/auth/auth-provider';
 import { dashboardApi, type CreateOrderInput } from '@/lib/dashboard-api';
-import { useActivity, useAnalyticsSummary, useIntegrations, useInventory, useMenus, useOrders } from '@/hooks/use-dashboard-data';
+import { getApiErrorMessage } from '@/lib/api-client';
+import { useActivity, useAnalyticsSummary, useAudit, useIntegrations, useInventory, useMenus, useOrders } from '@/hooks/use-dashboard-data';
 import { useOpsStore } from '@/store/ops-store';
 
 const statusFilters: Array<OrderStatus | 'all'> = ['all', 'pending', 'accepted', 'preparing', 'dispatched', 'delivered', 'cancelled'];
@@ -83,7 +84,8 @@ export function OrdersPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const updateStatus = useMutation({
-    mutationFn: ({ orderId, nextStatus }: { orderId: string; nextStatus: OrderStatus }) => dashboardApi.updateOrderStatus(orderId, nextStatus),
+    mutationFn: ({ orderId, nextStatus, expectedUpdatedAt }: { orderId: string; nextStatus: OrderStatus; expectedUpdatedAt?: string }) =>
+      dashboardApi.updateOrderStatus(orderId, nextStatus, expectedUpdatedAt),
     onMutate: async ({ orderId, nextStatus }) => {
       setStatusMessage(null);
       await queryClient.cancelQueries({ queryKey: ['orders'] });
@@ -141,7 +143,7 @@ export function OrdersPage() {
   });
 
   function updateOrder(order: Order, nextStatus: OrderStatus) {
-    updateStatus.mutate({ orderId: order.id, nextStatus });
+    updateStatus.mutate({ orderId: order.id, nextStatus, expectedUpdatedAt: order.updatedAt });
   }
 
   const visibleOrders = orders.data?.items ?? [];
@@ -468,6 +470,7 @@ function ManualOrderModal({
   const [channel, setChannel] = useState<Channel>('direct');
   const [customerName, setCustomerName] = useState('');
   const [etaMinutes, setEtaMinutes] = useState(25);
+  const [clientMutationId] = useState(() => `manual-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const [lines, setLines] = useState<Array<{ menuItemId: string; quantity: number }>>([{ menuItemId: defaultMenuId, quantity: 1 }]);
   useEffect(() => {
     if (!outletId && defaultOutletId) setOutletId(defaultOutletId);
@@ -484,7 +487,7 @@ function ManualOrderModal({
   function submit() {
     const items = lines.filter((line) => line.menuItemId && line.quantity > 0);
     if (!outletId || !customerName.trim() || !items.length) return;
-    onCreate({ outletId, channel, customerName: customerName.trim(), etaMinutes, items });
+    onCreate({ outletId, channel, customerName: customerName.trim(), etaMinutes, items, clientMutationId });
   }
 
   return (
@@ -804,6 +807,70 @@ export function NotificationsPage() {
   );
 }
 
+export function AuditPage() {
+  const [query, setQuery] = useState('');
+  const [action, setAction] = useState('all');
+  const [page, setPage] = useState(1);
+  const audit = useAudit({ page, limit: 20, query, action });
+
+  return (
+    <div className="space-y-6">
+      <PageHeader eyebrow="Audit" title="Operational audit timeline" />
+      <Card className="p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <SearchInput
+            value={query}
+            onChange={(event) => {
+              setPage(1);
+              setQuery(event.target.value);
+            }}
+            placeholder="Search action, entity, outlet"
+          />
+          <select
+            className="h-10 rounded-xl border border-line bg-panel px-3 text-sm font-semibold text-ink"
+            value={action}
+            onChange={(event) => {
+              setPage(1);
+              setAction(event.target.value);
+            }}
+          >
+            <option value="all">All actions</option>
+            {['auth.login', 'auth.logout', 'auth.failed', 'order.created', 'order.status_changed', 'inventory.adjusted', 'inventory.low_stock'].map((item) => (
+              <option key={item} value={item}>
+                {item.replace('.', ' ')}
+              </option>
+            ))}
+          </select>
+        </div>
+      </Card>
+      <Card className="overflow-hidden">
+        <AsyncTableState loading={audit.isLoading} error={audit.isError} empty={!audit.data?.items.length}>
+          <div className="divide-y divide-line">
+            {audit.data?.items.map((item) => (
+              <div key={item.id} className="grid gap-3 p-4 text-sm lg:grid-cols-[1.2fr_.9fr_.8fr_.8fr]">
+                <div>
+                  <p className="font-bold">{item.action.replace('.', ' ')}</p>
+                  <p className="mt-1 text-xs text-muted">{item.entityType}{item.entityId ? ` - ${item.entityId}` : ''}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">{item.actorRole ?? 'system'}</p>
+                  <p className="mt-1 text-xs text-muted">{item.actorUserId ?? 'No actor'}</p>
+                </div>
+                <div>
+                  <p className="font-semibold">{item.outletName ?? 'All outlets'}</p>
+                  <p className="mt-1 text-xs text-muted">{item.correlationId ?? 'No correlation id'}</p>
+                </div>
+                <p className="font-semibold text-muted">{formatDateTime(item.createdAt)}</p>
+              </div>
+            ))}
+          </div>
+        </AsyncTableState>
+      </Card>
+      <Pagination page={page} totalPages={audit.data?.totalPages ?? 1} onPage={setPage} />
+    </div>
+  );
+}
+
 function activityToNotification(activity: OperationalActivity): OperationsNotification {
   return {
     id: `activity:${activity.id}`,
@@ -946,17 +1013,19 @@ function InventoryRiskPanel() {
 function KitchenPerformancePanel() {
   const summary = useAnalyticsSummary();
   const activeLoad = summary.data
-    ? summary.data.orderStatus.pending + summary.data.orderStatus.accepted + summary.data.orderStatus.preparing + summary.data.orderStatus.dispatched
+    ? summary.data.operational.activeKitchenLoad
     : 0;
   const throughput = summary.data?.totals.ordersToday ?? 0;
   const cancellationRate = summary.data?.totals.cancellationRate ?? 0;
+  const queueLatency = summary.data?.operational.averageQueueLatencyMinutes ?? 0;
+  const slaBreaches = summary.data?.operational.slaBreaches ?? 0;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <MetricCard label="Active kitchen load" value={String(activeLoad)} detail="Orders in live workflow">
         <Activity className="size-5 text-royal" />
       </MetricCard>
-      <MetricCard label="Prep time" value={`${summary.data?.totals.averagePrepTime ?? 0}m`} detail="Average today">
+      <MetricCard label="Queue latency" value={`${queueLatency}m`} detail={`${slaBreaches} SLA breaches today`}>
         <Clock className="size-5 text-royal" />
       </MetricCard>
       <MetricCard label="Throughput" value={String(throughput)} detail="Orders completed today">
@@ -1059,9 +1128,14 @@ function LoadingRows() {
 
 function ErrorState() {
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">
-      <AlertCircle className="size-4" />
-      Could not load live data.
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200">
+      <span className="flex items-center gap-2">
+        <AlertCircle className="size-4" />
+        Could not load live data.
+      </span>
+      <Button size="sm" variant="secondary" onClick={() => window.location.reload()}>
+        Retry
+      </Button>
     </div>
   );
 }
@@ -1105,13 +1179,7 @@ function formatDateTime(value: string) {
 }
 
 function getMutationErrorMessage(error: unknown) {
-  if (typeof error === 'object' && error && 'response' in error) {
-    const response = (error as { response?: { data?: { message?: string | string[] } } }).response;
-    const message = response?.data?.message;
-    if (Array.isArray(message)) return message.join(', ');
-    if (message) return message;
-  }
-  return 'Could not update order status.';
+  return getApiErrorMessage(error);
 }
 
 function useNow() {
