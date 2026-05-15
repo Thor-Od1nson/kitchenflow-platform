@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { OrderStatus } from '@kitchenflow/types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OperationsGateway } from '../../realtime/operations.gateway';
@@ -56,14 +56,73 @@ export class OrdersService {
   async updateStatus(restaurantId: string, id: string, status: OrderStatus) {
     const order = await this.prisma.order.findFirst({ where: { id, restaurantId } });
     if (!order) throw new NotFoundException('Order not found');
+    this.assertValidTransition(order.status, status);
+    const previousStatus = order.status;
+    const now = new Date();
     const updated = await this.prisma.order.update({
       where: { id },
-      data: { status },
+      data: { status, ...this.timestampForStatus(status, now) },
       include: { outlet: { select: { name: true, city: true } } }
     });
     const serialized = this.serializeOrder(updated);
-    this.operations.emitOrderStatusUpdated({ restaurantId, orderId: id, status, order: serialized });
+    this.operations.emitOrderStatusUpdated({
+      restaurantId,
+      orderId: id,
+      previousStatus,
+      newStatus: status,
+      status,
+      outletId: updated.outletId,
+      timestamps: this.statusTimestamps(updated),
+      order: serialized
+    });
     return serialized;
+  }
+
+  private assertValidTransition(currentStatus: OrderStatus, nextStatus: OrderStatus) {
+    if (currentStatus === nextStatus) {
+      throw new BadRequestException(`Order is already ${nextStatus}`);
+    }
+
+    const allowedTransitions: Record<OrderStatus, OrderStatus[]> = {
+      pending: ['accepted', 'cancelled'],
+      accepted: ['preparing', 'cancelled'],
+      preparing: ['dispatched'],
+      dispatched: ['delivered'],
+      delivered: [],
+      cancelled: []
+    };
+
+    if (!allowedTransitions[currentStatus].includes(nextStatus)) {
+      throw new BadRequestException(`Cannot transition order from ${currentStatus} to ${nextStatus}`);
+    }
+  }
+
+  private timestampForStatus(status: OrderStatus, date: Date) {
+    const timestampFields: Partial<Record<OrderStatus, 'acceptedAt' | 'preparingAt' | 'dispatchedAt' | 'deliveredAt' | 'cancelledAt'>> = {
+      accepted: 'acceptedAt',
+      preparing: 'preparingAt',
+      dispatched: 'dispatchedAt',
+      delivered: 'deliveredAt',
+      cancelled: 'cancelledAt'
+    };
+    const field = timestampFields[status];
+    return field ? { [field]: date } : {};
+  }
+
+  private statusTimestamps(order: {
+    acceptedAt: Date | null;
+    preparingAt: Date | null;
+    dispatchedAt: Date | null;
+    deliveredAt: Date | null;
+    cancelledAt: Date | null;
+  }) {
+    return {
+      acceptedAt: order.acceptedAt?.toISOString() ?? null,
+      preparingAt: order.preparingAt?.toISOString() ?? null,
+      dispatchedAt: order.dispatchedAt?.toISOString() ?? null,
+      deliveredAt: order.deliveredAt?.toISOString() ?? null,
+      cancelledAt: order.cancelledAt?.toISOString() ?? null
+    };
   }
 
   private serializeOrder(order: {
@@ -78,6 +137,11 @@ export class OrdersService {
     currency: string;
     payload: unknown;
     etaMinutes: number;
+    acceptedAt: Date | null;
+    preparingAt: Date | null;
+    dispatchedAt: Date | null;
+    deliveredAt: Date | null;
+    cancelledAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
     outlet: { name: string; city: string };
@@ -96,6 +160,7 @@ export class OrdersService {
       total: { amount: order.totalAmount, currency: order.currency },
       placedAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
+      ...this.statusTimestamps(order),
       etaMinutes: order.etaMinutes,
       items:
         payload.items?.map((item, index) => ({

@@ -27,7 +27,7 @@ export function useOperationsSocket() {
       void queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
     });
 
-    socket.on('order.status.updated', (event: { orderId: string; order?: Order }) => {
+    socket.on('order.status.updated', (event: { orderId: string; order?: Order; previousStatus?: string; newStatus?: string; outletId?: string }) => {
       queryClient.setQueriesData<{ items: Order[] }>(
         { queryKey: ['orders'] },
         (existing) =>
@@ -38,6 +38,7 @@ export function useOperationsSocket() {
               }
             : existing
       );
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
       void queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
     });
 

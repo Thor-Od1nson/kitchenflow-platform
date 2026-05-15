@@ -22,7 +22,7 @@ export class OperationsGateway implements OnGatewayConnection {
   }
 
   @SubscribeMessage('order.status.updated')
-  broadcastOrderStatus(@MessageBody() body: { restaurantId: string; orderId: string; status: string }) {
+  broadcastOrderStatus(@MessageBody() body: { restaurantId: string; orderId: string; status: string; previousStatus?: string; newStatus?: string }) {
     this.emitOrderStatusUpdated(body);
     return { ok: true };
   }
@@ -43,7 +43,16 @@ export class OperationsGateway implements OnGatewayConnection {
     this.server.to(`restaurant:${body.restaurantId}`).emit('order.created', body);
   }
 
-  emitOrderStatusUpdated(body: { restaurantId: string; orderId: string; status: string; order?: unknown }) {
+  emitOrderStatusUpdated(body: {
+    restaurantId: string;
+    orderId: string;
+    outletId?: string;
+    status: string;
+    previousStatus?: string;
+    newStatus?: string;
+    timestamps?: Record<string, string | null>;
+    order?: unknown;
+  }) {
     this.server.to(`restaurant:${body.restaurantId}`).emit('order.status.updated', body);
   }
 

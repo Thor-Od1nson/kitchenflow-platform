@@ -19,6 +19,7 @@ export const orders: Order[] = [
     status: 'pending',
     total: { amount: 1180, currency: 'INR' },
     placedAt: '2 min ago',
+    updatedAt: new Date().toISOString(),
     etaMinutes: 28,
     items: [
       { id: 'line_1', name: 'Truffle Paneer Bowl', quantity: 2, price: { amount: 460, currency: 'INR' } },
@@ -36,6 +37,9 @@ export const orders: Order[] = [
     status: 'preparing',
     total: { amount: 760, currency: 'INR' },
     placedAt: '8 min ago',
+    updatedAt: new Date().toISOString(),
+    acceptedAt: new Date().toISOString(),
+    preparingAt: new Date().toISOString(),
     etaMinutes: 18,
     items: [{ id: 'line_3', name: 'Korean Millet Bowl', quantity: 1, price: { amount: 760, currency: 'INR' } }]
   },
@@ -50,6 +54,10 @@ export const orders: Order[] = [
     status: 'dispatched',
     total: { amount: 1430, currency: 'INR' },
     placedAt: '19 min ago',
+    updatedAt: new Date().toISOString(),
+    acceptedAt: new Date().toISOString(),
+    preparingAt: new Date().toISOString(),
+    dispatchedAt: new Date().toISOString(),
     etaMinutes: 9,
     items: [{ id: 'line_4', name: 'Nashville Chicken Stack', quantity: 2, price: { amount: 715, currency: 'INR' } }]
   }

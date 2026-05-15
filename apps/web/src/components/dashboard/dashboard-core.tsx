@@ -14,9 +14,9 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { Activity, AlertCircle, ArrowUpRight, Clock, Loader2, PackageCheck } from 'lucide-react';
-import { Badge, Button, Card, MetricCard, SearchInput, Skeleton } from '@kitchenflow/ui';
-import type { Channel, Order, OrderStatus } from '@kitchenflow/types';
+import { Activity, AlertCircle, ArrowUpRight, Clock, Eye, Loader2, PackageCheck } from 'lucide-react';
+import { Badge, Button, Card, MetricCard, ModalFrame, SearchInput, Skeleton } from '@kitchenflow/ui';
+import type { Channel, Order, OrderStatus, PaginatedResponse } from '@kitchenflow/types';
 import { formatMoney, percentage, statusCopy, statusTone } from '@kitchenflow/utils';
 import { useAuth } from '@/components/auth/auth-provider';
 import { dashboardApi } from '@/lib/dashboard-api';
@@ -24,7 +24,15 @@ import { useAnalyticsSummary, useIntegrations, useInventory, useMenus, useOrders
 
 const statusFilters: Array<OrderStatus | 'all'> = ['all', 'pending', 'accepted', 'preparing', 'dispatched', 'delivered', 'cancelled'];
 const channelFilters: Array<Channel | 'all'> = ['all', 'swiggy', 'zomato', 'uber_eats', 'deliveroo'];
-const flow: OrderStatus[] = ['pending', 'accepted', 'preparing', 'dispatched', 'delivered'];
+const activeQueueStatuses: OrderStatus[] = ['pending', 'accepted', 'preparing', 'dispatched'];
+const orderTransitions: Record<OrderStatus, OrderStatus[]> = {
+  pending: ['accepted', 'cancelled'],
+  accepted: ['preparing', 'cancelled'],
+  preparing: ['dispatched'],
+  dispatched: ['delivered'],
+  delivered: [],
+  cancelled: []
+};
 
 export function OverviewPage() {
   const summary = useAnalyticsSummary();
@@ -65,24 +73,75 @@ export function OrdersPage() {
   const [status, setStatus] = useState<OrderStatus | 'all'>('all');
   const [channel, setChannel] = useState<Channel | 'all'>('all');
   const [page, setPage] = useState(1);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
   const orders = useOrders({ page, limit: 12, status, channel, query });
   const queryClient = useQueryClient();
   const updateStatus = useMutation({
     mutationFn: ({ orderId, nextStatus }: { orderId: string; nextStatus: OrderStatus }) => dashboardApi.updateOrderStatus(orderId, nextStatus),
-    onSuccess: () => {
+    onMutate: async ({ orderId, nextStatus }) => {
+      setStatusMessage(null);
+      await queryClient.cancelQueries({ queryKey: ['orders'] });
+      const previousOrders = queryClient.getQueriesData<PaginatedResponse<Order>>({ queryKey: ['orders'] });
+      const optimisticUpdatedAt = new Date().toISOString();
+      queryClient.setQueriesData<PaginatedResponse<Order>>({ queryKey: ['orders'] }, (existing) =>
+        existing
+          ? {
+              ...existing,
+              items: existing.items.map((order) =>
+                order.id === orderId
+                  ? {
+                      ...order,
+                      status: nextStatus,
+                      updatedAt: optimisticUpdatedAt,
+                      ...timestampPatch(nextStatus, optimisticUpdatedAt)
+                    }
+                  : order
+              )
+            }
+          : existing
+      );
+      setSelectedOrder((order) =>
+        order?.id === orderId
+          ? { ...order, status: nextStatus, updatedAt: optimisticUpdatedAt, ...timestampPatch(nextStatus, optimisticUpdatedAt) }
+          : order
+      );
+      return { previousOrders };
+    },
+    onSuccess: (updatedOrder) => {
+      setStatusMessage({ tone: 'success', text: `${updatedOrder.publicId} moved to ${statusCopy[updatedOrder.status]}.` });
       void queryClient.invalidateQueries({ queryKey: ['orders'] });
       void queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
+      setSelectedOrder((order) => (order?.id === updatedOrder.id ? updatedOrder : order));
+    },
+    onError: (error, _variables, context) => {
+      context?.previousOrders.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+      setStatusMessage({ tone: 'error', text: getMutationErrorMessage(error) });
     }
   });
 
-  function advanceOrder(order: Order) {
-    const nextStatus = flow[Math.min(flow.indexOf(order.status) + 1, flow.length - 1)] ?? order.status;
+  function updateOrder(order: Order, nextStatus: OrderStatus) {
     updateStatus.mutate({ orderId: order.id, nextStatus });
   }
+
+  const visibleOrders = orders.data?.items ?? [];
+  const selectedOrderView = selectedOrder ? visibleOrders.find((order) => order.id === selectedOrder.id) ?? selectedOrder : null;
 
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Order management" title="Kitchen workflow and delivery tracking" action="Create manual order" />
+      {statusMessage ? (
+        <div
+          className={`flex items-center gap-2 rounded-xl border p-3 text-sm font-semibold ${
+            statusMessage.tone === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+          }`}
+        >
+          <AlertCircle className="size-4" />
+          {statusMessage.text}
+        </div>
+      ) : null}
       <Card className="p-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <SearchInput
@@ -125,13 +184,14 @@ export function OrdersPage() {
           ))}
         </div>
       </Card>
+      <KitchenQueue orders={visibleOrders} loading={orders.isLoading} error={orders.isError} />
       <Card className="overflow-hidden">
         <AsyncTableState loading={orders.isLoading} error={orders.isError} empty={!orders.data?.items.length}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-left text-sm">
+            <table className="w-full min-w-[1080px] text-left text-sm">
               <thead className="border-b border-line bg-slate-50 text-xs uppercase tracking-wide text-muted">
                 <tr>
-                  {['Order', 'Channel', 'Customer', 'Outlet', 'SLA', 'Total', 'Status', 'Action'].map((head) => (
+                  {['Order', 'Channel', 'Customer', 'Outlet', 'SLA', 'Total', 'Status', 'Actions', 'Detail'].map((head) => (
                     <th key={head} className="px-5 py-4 font-bold">{head}</th>
                   ))}
                 </tr>
@@ -149,9 +209,11 @@ export function OrdersPage() {
                       <Badge className={statusTone[order.status]}>{statusCopy[order.status]}</Badge>
                     </td>
                     <td className="px-5 py-4">
-                      <Button size="sm" variant="secondary" onClick={() => advanceOrder(order)} disabled={updateStatus.isPending || order.status === 'delivered'}>
-                        {updateStatus.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-                        Advance
+                      <OrderActions order={order} loadingOrderId={updateStatus.variables?.orderId} loading={updateStatus.isPending} onUpdate={updateOrder} />
+                    </td>
+                    <td className="px-5 py-4">
+                      <Button size="sm" variant="ghost" onClick={() => setSelectedOrder(order)} aria-label={`View ${order.publicId}`}>
+                        <Eye className="size-4" />
                       </Button>
                     </td>
                   </tr>
@@ -162,7 +224,167 @@ export function OrdersPage() {
         </AsyncTableState>
       </Card>
       <Pagination page={page} totalPages={orders.data?.totalPages ?? 1} onPage={setPage} />
+      {selectedOrderView ? (
+        <OrderDetailModal
+          order={selectedOrderView}
+          loadingOrderId={updateStatus.variables?.orderId}
+          loading={updateStatus.isPending}
+          onUpdate={updateOrder}
+          onClose={() => setSelectedOrder(null)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function KitchenQueue({ orders, loading, error }: { orders: Order[]; loading: boolean; error: boolean }) {
+  return (
+    <div className="grid gap-4 xl:grid-cols-4">
+      {activeQueueStatuses.map((queueStatus) => {
+        const queueOrders = orders.filter((order) => order.status === queueStatus);
+        return (
+          <Card key={queueStatus} className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-wide">{statusCopy[queueStatus]}</h2>
+                <p className="text-xs font-semibold text-muted">{queueOrders.length} active</p>
+              </div>
+              <Badge className={statusTone[queueStatus]}>{queueOrders.length}</Badge>
+            </div>
+            <div className="mt-4 min-h-32 space-y-3">
+              <AsyncState loading={loading} error={error} empty={!queueOrders.length}>
+                {queueOrders.slice(0, 4).map((order) => (
+                  <div key={order.id} className="rounded-lg border border-line bg-slate-50 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-bold text-ink">{order.publicId}</p>
+                      <span className="text-xs font-semibold text-muted">{order.etaMinutes}m</span>
+                    </div>
+                    <p className="mt-1 truncate text-xs font-semibold text-muted">{order.customerName}</p>
+                    <p className="mt-1 truncate text-xs text-muted">{order.outletName}</p>
+                  </div>
+                ))}
+              </AsyncState>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function OrderActions({
+  order,
+  loadingOrderId,
+  loading,
+  onUpdate
+}: {
+  order: Order;
+  loadingOrderId?: string;
+  loading: boolean;
+  onUpdate: (order: Order, nextStatus: OrderStatus) => void;
+}) {
+  const nextStatuses = orderTransitions[order.status];
+  const isThisOrderLoading = loading && loadingOrderId === order.id;
+  if (!nextStatuses.length) {
+    return <span className="text-xs font-semibold text-muted">No actions</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {nextStatuses.map((nextStatus) => (
+        <Button
+          key={nextStatus}
+          size="sm"
+          variant={nextStatus === 'cancelled' ? 'danger' : 'secondary'}
+          onClick={() => onUpdate(order, nextStatus)}
+          disabled={loading}
+        >
+          {isThisOrderLoading ? <Loader2 className="size-4 animate-spin" /> : null}
+          {actionCopy(nextStatus)}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+function OrderDetailModal({
+  order,
+  loadingOrderId,
+  loading,
+  onUpdate,
+  onClose
+}: {
+  order: Order;
+  loadingOrderId?: string;
+  loading: boolean;
+  onUpdate: (order: Order, nextStatus: OrderStatus) => void;
+  onClose: () => void;
+}) {
+  const timeline: Array<{ label: string; value?: string | null }> = [
+    { label: 'Placed', value: order.placedAt },
+    { label: 'Accepted', value: order.acceptedAt },
+    { label: 'Preparing', value: order.preparingAt },
+    { label: 'Dispatched', value: order.dispatchedAt },
+    { label: 'Delivered', value: order.deliveredAt },
+    { label: 'Cancelled', value: order.cancelledAt }
+  ];
+
+  return (
+    <ModalFrame title={`${order.publicId} details`} onClose={onClose}>
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-ink">{order.customerName}</p>
+            <p className="mt-1 text-xs font-semibold capitalize text-muted">
+              {order.channel.replace('_', ' ')} - {order.outletName}
+            </p>
+          </div>
+          <Badge className={statusTone[order.status]}>{statusCopy[order.status]}</Badge>
+        </div>
+        <div className="grid gap-3 rounded-xl border border-line bg-slate-50 p-4 text-sm sm:grid-cols-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted">Total</p>
+            <p className="mt-1 font-black">{formatMoney(order.total.amount, order.total.currency)}</p>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted">SLA</p>
+            <p className="mt-1 font-black">{order.etaMinutes} min</p>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted">Updated</p>
+            <p className="mt-1 font-black">{formatDateTime(order.updatedAt)}</p>
+          </div>
+        </div>
+        <div>
+          <h3 className="text-sm font-black">Items</h3>
+          <div className="mt-3 divide-y divide-line rounded-xl border border-line">
+            {order.items.map((item) => (
+              <div key={item.id} className="flex items-start justify-between gap-4 p-3 text-sm">
+                <div>
+                  <p className="font-bold">{item.quantity}x {item.name}</p>
+                  {item.modifiers?.length ? <p className="mt-1 text-xs text-muted">{item.modifiers.join(', ')}</p> : null}
+                </div>
+                <span className="font-semibold">{formatMoney(item.price.amount, item.price.currency)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h3 className="text-sm font-black">Status timeline</h3>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {timeline.map((step) => (
+              <div key={step.label} className="rounded-lg border border-line p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">{step.label}</p>
+                <p className="mt-1 text-sm font-semibold">{step.value ? formatDateTime(step.value) : 'Not reached'}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+          <OrderActions order={order} loadingOrderId={loadingOrderId} loading={loading} onUpdate={onUpdate} />
+        </div>
+      </div>
+    </ModalFrame>
   );
 }
 
@@ -523,4 +745,41 @@ function formatKpiValue(value: number, unit: string) {
   if (unit === 'minutes') return `${value}m`;
   if (unit === 'percent') return `${value}%`;
   return new Intl.NumberFormat('en-IN').format(value);
+}
+
+function actionCopy(status: OrderStatus) {
+  if (status === 'accepted') return 'Accept';
+  if (status === 'preparing') return 'Start prep';
+  if (status === 'dispatched') return 'Dispatch';
+  if (status === 'delivered') return 'Deliver';
+  if (status === 'cancelled') return 'Cancel';
+  return statusCopy[status];
+}
+
+function timestampPatch(status: OrderStatus, value: string): Partial<Order> {
+  if (status === 'accepted') return { acceptedAt: value };
+  if (status === 'preparing') return { preparingAt: value };
+  if (status === 'dispatched') return { dispatchedAt: value };
+  if (status === 'delivered') return { deliveredAt: value };
+  if (status === 'cancelled') return { cancelledAt: value };
+  return {};
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(value));
+}
+
+function getMutationErrorMessage(error: unknown) {
+  if (typeof error === 'object' && error && 'response' in error) {
+    const response = (error as { response?: { data?: { message?: string | string[] } } }).response;
+    const message = response?.data?.message;
+    if (Array.isArray(message)) return message.join(', ');
+    if (message) return message;
+  }
+  return 'Could not update order status.';
 }

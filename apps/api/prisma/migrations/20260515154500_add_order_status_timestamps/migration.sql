@@ -1,0 +1,6 @@
+ALTER TABLE "Order"
+ADD COLUMN "acceptedAt" TIMESTAMP(3),
+ADD COLUMN "preparingAt" TIMESTAMP(3),
+ADD COLUMN "dispatchedAt" TIMESTAMP(3),
+ADD COLUMN "deliveredAt" TIMESTAMP(3),
+ADD COLUMN "cancelledAt" TIMESTAMP(3);

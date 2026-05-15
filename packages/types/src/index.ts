@@ -66,6 +66,12 @@ export interface Order {
   status: OrderStatus;
   total: Money;
   placedAt: string;
+  updatedAt: string;
+  acceptedAt?: string | null;
+  preparingAt?: string | null;
+  dispatchedAt?: string | null;
+  deliveredAt?: string | null;
+  cancelledAt?: string | null;
   etaMinutes: number;
   items: OrderLine[];
 }
