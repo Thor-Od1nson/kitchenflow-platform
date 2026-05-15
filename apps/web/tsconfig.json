@@ -12,9 +12,6 @@
       "@kitchenflow/ui/*": [
         "../../packages/ui/src/*"
       ],
-      "@kitchenflow/types": [
-        "../../packages/types/src/index.ts"
-      ],
       "@kitchenflow/utils": [
         "../../packages/utils/src/index.ts"
       ]

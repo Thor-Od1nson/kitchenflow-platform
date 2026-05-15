@@ -43,7 +43,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { darkMode, toggleDarkMode } = useOpsStore();
   const { user, logout } = useAuth();
+
   const visibleNav = nav.filter((item) => user && item.roles.includes(user.role));
+
   useOperationsSocket();
 
   useEffect(() => {
@@ -59,20 +61,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </span>
           KitchenFlow
         </Link>
+
         <div className="mt-6 rounded-2xl border border-line bg-surface p-3 dark:border-white/10 dark:bg-white/5">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold">{user?.restaurant.name}</p>
+              <p className="truncate text-sm font-bold">
+                {user?.restaurant?.name ?? 'Restaurant'}
+              </p>
+
               <p className="truncate text-xs text-muted">
-                {user?.restaurant.outlets.length ?? 0} outlets - {user?.role.replace('_', ' ')}
+                {user?.restaurant?.outlets?.length ?? 0} outlets -{' '}
+                {user?.role?.replace('_', ' ') ?? 'user'}
               </p>
             </div>
+
             <ChevronDown className="size-4 shrink-0 text-muted" />
           </div>
         </div>
+
         <nav className="mt-6 space-y-1">
           {visibleNav.map((item) => {
             const active = pathname === item.href;
+
             return (
               <Link
                 key={item.href}
@@ -89,12 +99,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+
         <div className="absolute inset-x-4 bottom-5">
           <div className="mb-3 rounded-2xl border border-line bg-surface p-3 dark:border-white/10 dark:bg-white/5">
-            <p className="truncate text-sm font-bold">{user?.fullName}</p>
-            <p className="truncate text-xs text-muted">{user?.email}</p>
+            <p className="truncate text-sm font-bold">
+              {user?.fullName ?? 'User'}
+            </p>
+
+            <p className="truncate text-xs text-muted">
+              {user?.email ?? 'No email'}
+            </p>
           </div>
-          <Button className="w-full justify-start" variant="secondary" size="sm" onClick={logout}>
+
+          <Button
+            className="w-full justify-start"
+            variant="secondary"
+            size="sm"
+            onClick={logout}
+          >
             <LogOut className="size-4" />
             Logout
           </Button>
@@ -106,22 +128,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3">
             <div className="relative min-w-0 flex-1">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+
               <input
                 className="h-10 w-full rounded-xl border border-line bg-surface pl-9 pr-3 text-sm outline-none focus:border-royal focus:ring-4 focus:ring-blue-100 dark:border-white/10 dark:bg-white/5"
                 placeholder="Search orders, menus, stores, integrations..."
               />
             </div>
-            <Button variant="secondary" size="sm" onClick={toggleDarkMode} aria-label="Toggle dark mode">
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={toggleDarkMode}
+              aria-label="Toggle dark mode"
+            >
               <Moon className="size-4" />
             </Button>
+
             <div className="hidden min-w-0 text-right md:block">
-              <p className="truncate text-sm font-bold">{user?.fullName}</p>
-              <p className="truncate text-xs text-muted">{user?.role.replace('_', ' ')}</p>
+              <p className="truncate text-sm font-bold">
+                {user?.fullName ?? 'User'}
+              </p>
+
+              <p className="truncate text-xs text-muted">
+                {user?.role?.replace('_', ' ') ?? 'user'}
+              </p>
             </div>
+
             <Button size="sm">New order</Button>
           </div>
         </header>
-        <main className="mx-auto max-w-[1500px] px-4 py-6 md:px-8">{children}</main>
+
+        <main className="mx-auto max-w-[1500px] px-4 py-6 md:px-8">
+          {children}
+        </main>
       </div>
     </div>
   );

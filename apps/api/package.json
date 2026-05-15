@@ -4,9 +4,12 @@
   "version": "0.1.0",
   "scripts": {
     "start:dev": "nest start --watch",
+    "prestart:dev": "pnpm --filter @kitchenflow/types build",
     "build": "nest build",
+    "prebuild": "pnpm --filter @kitchenflow/types build",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
+    "pretypecheck": "pnpm --filter @kitchenflow/types build",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed"
@@ -24,6 +27,7 @@
     "@nestjs/platform-socket.io": "^10.4.7",
     "@nestjs/throttler": "^6.2.1",
     "@nestjs/websockets": "^10.4.7",
+    "@kitchenflow/types": "workspace:*",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "class-transformer": "^0.5.1",

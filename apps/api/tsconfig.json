@@ -6,12 +6,15 @@
     "moduleResolution": "node",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "rootDir": "./src",
     "outDir": "./dist",
-    "baseUrl": ".",
-    "noEmit": false,
+    "baseUrl": "./src",
     "paths": {
-      "@/*": ["./src/*"],
-      "@kitchenflow/types": ["../../packages/types/src/index.ts"]
+      "@/*": ["*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"],

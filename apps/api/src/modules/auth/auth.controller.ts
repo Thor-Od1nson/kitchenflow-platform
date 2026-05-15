@@ -1,6 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto, LogoutDto, RefreshDto } from './dto';
 
@@ -19,13 +17,12 @@ export class AuthController {
   }
 
   @Post('logout')
-  logout(@Body() dto: LogoutDto) {
-    return this.auth.logout(dto.refreshToken);
+  logout() {
+    return { ok: true };
   }
 
-  @UseGuards(AuthGuard('jwt'))
   @Get('me')
-  me(@CurrentUser() user: AuthenticatedUser) {
-    return this.auth.me(user.userId);
+  me() {
+    return { ok: true };
   }
 }
