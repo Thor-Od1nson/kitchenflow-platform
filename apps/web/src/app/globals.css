@@ -5,6 +5,14 @@
 :root {
   color-scheme: light;
   --grid: rgba(23, 21, 75, .08);
+  --color-ink: 11 16 32;
+  --color-muted: 102 112 133;
+  --color-line: 230 233 241;
+  --color-surface: 247 248 251;
+  --color-panel: 255 255 255;
+  --color-panel-muted: 248 250 252;
+  --color-royal: 36 107 254;
+  --color-cyan: 40 215 239;
 }
 
 * {
@@ -17,8 +25,8 @@ html {
 
 body {
   margin: 0;
-  background: #f7f8fb;
-  color: #0b1020;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-ink));
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
@@ -28,6 +36,15 @@ body {
 }
 
 .dark body {
-  background: #080b14;
-  color: #f8fafc;
+  --grid: rgba(255, 255, 255, .08);
+  --color-ink: 248 250 252;
+  --color-muted: 148 163 184;
+  --color-line: 51 65 85;
+  --color-surface: 8 11 20;
+  --color-panel: 13 17 28;
+  --color-panel-muted: 21 27 41;
+  --color-royal: 96 165 250;
+  --color-cyan: 34 211 238;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-ink));
 }

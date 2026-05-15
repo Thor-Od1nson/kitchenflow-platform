@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { OrderStatus } from '@kitchenflow/types';
+import type { Channel, Money, Order, OrderStatus } from '@kitchenflow/types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OperationsGateway } from '../../realtime/operations.gateway';
-import { ListOrdersDto } from './dto';
+import { CreateOrderDto, ListOrdersDto } from './dto';
 
 @Injectable()
 export class OrdersService {
@@ -53,6 +53,67 @@ export class OrdersService {
     };
   }
 
+  async create(restaurantId: string, dto: CreateOrderDto) {
+    if (!dto.items?.length) {
+      throw new BadRequestException('Order must include at least one item');
+    }
+
+    const outlet = await this.prisma.outlet.findFirst({
+      where: { id: dto.outletId, restaurantId },
+      select: { id: true, name: true, city: true }
+    });
+    if (!outlet) throw new NotFoundException('Outlet not found');
+
+    const menuItems = await this.prisma.menuItem.findMany({
+      where: {
+        restaurantId,
+        id: { in: dto.items.map((item) => item.menuItemId) }
+      },
+      select: { id: true, name: true, priceAmount: true, currency: true, variants: true }
+    });
+    const menuLookup = new Map(menuItems.map((item) => [item.id, item]));
+
+    const lines = dto.items.map((item) => {
+      const menuItem = menuLookup.get(item.menuItemId);
+      if (!menuItem) throw new BadRequestException('One or more menu items are unavailable');
+      return {
+        id: `${menuItem.id}-${Date.now()}`,
+        name: menuItem.name,
+        quantity: item.quantity,
+        price: menuItem.priceAmount,
+        modifiers: []
+      };
+    });
+
+    const totalAmount = lines.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const created = await this.prisma.order.create({
+      data: {
+        publicId: this.createPublicId(outlet.city),
+        restaurantId,
+        outletId: outlet.id,
+        channel: dto.channel,
+        customerName: dto.customerName,
+        totalAmount,
+        currency: menuItems[0]?.currency ?? 'INR',
+        etaMinutes: dto.etaMinutes,
+        payload: { items: lines, source: 'manual' }
+      },
+      include: { outlet: { select: { name: true, city: true } } }
+    });
+
+    const serialized = this.serializeOrder(created);
+    await this.prisma.analyticsEvent.create({
+      data: {
+        restaurantId,
+        type: 'order_created',
+        dimensions: { outletId: outlet.id, outlet: outlet.name, channel: dto.channel },
+        metrics: { orderId: created.id, publicId: created.publicId, detail: `${created.publicId} created for ${created.customerName}` }
+      }
+    });
+    this.operations.emitOrderCreated({ restaurantId, order: serialized });
+    return serialized;
+  }
+
   async updateStatus(restaurantId: string, id: string, status: OrderStatus) {
     const order = await this.prisma.order.findFirst({ where: { id, restaurantId } });
     if (!order) throw new NotFoundException('Order not found');
@@ -65,6 +126,14 @@ export class OrdersService {
       include: { outlet: { select: { name: true, city: true } } }
     });
     const serialized = this.serializeOrder(updated);
+    await this.prisma.analyticsEvent.create({
+      data: {
+        restaurantId,
+        type: 'order_status_changed',
+        dimensions: { outletId: updated.outletId, outlet: updated.outlet.name, channel: updated.channel },
+        metrics: { orderId: id, publicId: updated.publicId, from: previousStatus, to: status, detail: `${updated.publicId} moved from ${previousStatus} to ${status}` }
+      }
+    });
     this.operations.emitOrderStatusUpdated({
       restaurantId,
       orderId: id,
@@ -125,6 +194,11 @@ export class OrdersService {
     };
   }
 
+  private createPublicId(city: string) {
+    const prefix = city.slice(0, 3).toUpperCase();
+    return `#${prefix}-${Math.floor(10000 + Math.random() * 90000)}`;
+  }
+
   private serializeOrder(order: {
     id: string;
     publicId: string;
@@ -145,7 +219,7 @@ export class OrdersService {
     createdAt: Date;
     updatedAt: Date;
     outlet: { name: string; city: string };
-  }) {
+  }): Order {
     const payload = order.payload as { items?: Array<{ id: string; name: string; quantity: number; price: number; modifiers?: string[] }> };
     return {
       id: order.id,
@@ -154,10 +228,10 @@ export class OrdersService {
       outletId: order.outletId,
       outletName: order.outlet.name,
       outletCity: order.outlet.city,
-      channel: order.channel,
+      channel: order.channel as Channel,
       status: order.status,
       customerName: order.customerName,
-      total: { amount: order.totalAmount, currency: order.currency },
+      total: { amount: order.totalAmount, currency: order.currency as Money['currency'] },
       placedAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
       ...this.statusTimestamps(order),
@@ -167,7 +241,7 @@ export class OrdersService {
           id: item.id ?? `${order.id}-${index}`,
           name: item.name,
           quantity: item.quantity,
-          price: { amount: item.price, currency: order.currency },
+          price: { amount: item.price, currency: order.currency as Money['currency'] },
           modifiers: item.modifiers
         })) ?? []
     };

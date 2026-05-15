@@ -76,7 +76,9 @@ async function main() {
 
   await Promise.all([
     upsertUser({ email: 'owner@kitchenflow.dev', fullName: 'Demo Owner', role: 'owner', restaurantId: restaurant.id, passwordHash }),
-    upsertUser({ email: 'admin@kitchenflow.dev', fullName: 'Demo Admin', role: 'admin', restaurantId: restaurant.id, passwordHash })
+    upsertUser({ email: 'manager@kitchenflow.dev', fullName: 'Demo Manager', role: 'manager', restaurantId: restaurant.id, passwordHash }),
+    upsertUser({ email: 'kitchen@kitchenflow.dev', fullName: 'Kitchen Lead', role: 'kitchen', restaurantId: restaurant.id, passwordHash }),
+    upsertUser({ email: 'support@kitchenflow.dev', fullName: 'Support Analyst', role: 'support', restaurantId: restaurant.id, passwordHash })
   ]);
 
   const outlets = await Promise.all(

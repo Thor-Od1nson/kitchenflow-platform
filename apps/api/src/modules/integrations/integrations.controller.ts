@@ -11,13 +11,13 @@ export class IntegrationsController {
   constructor(private readonly integrations: IntegrationsService) {}
 
   @Get()
-  @Roles('owner', 'admin', 'ops_manager')
+  @Roles('owner', 'manager')
   list(@CurrentUser() user: AuthenticatedUser) {
     return this.integrations.list(user.restaurantId);
   }
 
   @Post(':provider/test')
-  @Roles('owner', 'admin')
+  @Roles('owner')
   test(@Param('provider') provider: string) {
     return this.integrations.test(provider);
   }

@@ -11,8 +11,14 @@ export class AnalyticsController {
   constructor(private readonly analytics: AnalyticsService) {}
 
   @Get('summary')
-  @Roles('owner', 'admin', 'ops_manager', 'analyst')
+  @Roles('owner', 'manager', 'support')
   summary(@CurrentUser() user: AuthenticatedUser) {
     return this.analytics.summary(user.restaurantId);
+  }
+
+  @Get('activity')
+  @Roles('owner', 'manager', 'support')
+  activity(@CurrentUser() user: AuthenticatedUser) {
+    return this.analytics.activity(user.restaurantId);
   }
 }

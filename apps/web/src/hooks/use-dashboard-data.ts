@@ -6,40 +6,41 @@ import { dashboardApi, type OrdersQuery } from '@/lib/dashboard-api';
 export function useOrders(query: OrdersQuery) {
   return useQuery({
     queryKey: ['orders', query],
-    queryFn: () => dashboardApi.orders(query),
-    refetchInterval: 15_000
+    queryFn: () => dashboardApi.orders(query)
   });
 }
 
 export function useAnalyticsSummary() {
   return useQuery({
     queryKey: ['analytics-summary'],
-    queryFn: dashboardApi.analyticsSummary,
-    refetchInterval: 30_000
+    queryFn: dashboardApi.analyticsSummary
+  });
+}
+
+export function useActivity() {
+  return useQuery({
+    queryKey: ['activity'],
+    queryFn: dashboardApi.activity
   });
 }
 
 export function useIntegrations() {
   return useQuery({
     queryKey: ['integrations'],
-    queryFn: dashboardApi.integrations,
-    refetchInterval: 30_000
+    queryFn: dashboardApi.integrations
   });
 }
 
 export function useInventory(outletId?: string) {
   return useQuery({
-    queryKey: ['inventory', outletId],
-    queryFn: () => dashboardApi.inventory(outletId!),
-    enabled: Boolean(outletId),
-    refetchInterval: 20_000
+    queryKey: ['inventory', outletId ?? 'default'],
+    queryFn: () => dashboardApi.inventory(outletId)
   });
 }
 
 export function useMenus() {
   return useQuery({
     queryKey: ['menus'],
-    queryFn: dashboardApi.menus,
-    refetchInterval: 60_000
+    queryFn: dashboardApi.menus
   });
 }

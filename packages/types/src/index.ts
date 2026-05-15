@@ -1,4 +1,4 @@
-export type Role = 'owner' | 'admin' | 'ops_manager' | 'store_manager' | 'chef' | 'analyst';
+export type Role = 'owner' | 'manager' | 'kitchen' | 'support';
 
 export interface AuthOutlet {
   id: string;
@@ -61,6 +61,7 @@ export interface Order {
   restaurantId: string;
   outletId: string;
   outletName: string;
+  outletCity: string;
   channel: Channel;
   customerName: string;
   status: OrderStatus;
@@ -74,6 +75,28 @@ export interface Order {
   cancelledAt?: string | null;
   etaMinutes: number;
   items: OrderLine[];
+}
+
+export interface OrderStatusUpdatedEvent {
+  restaurantId: string;
+  orderId: string;
+  outletId: string;
+  previousStatus: OrderStatus;
+  newStatus: OrderStatus;
+  status: OrderStatus;
+  timestamps: {
+    acceptedAt: string | null;
+    preparingAt: string | null;
+    dispatchedAt: string | null;
+    deliveredAt: string | null;
+    cancelledAt: string | null;
+  };
+  order: Order;
+}
+
+export interface OrderCreatedEvent {
+  restaurantId: string;
+  order: Order;
 }
 
 export interface Kpi {
@@ -185,6 +208,48 @@ export interface InventoryItem {
 export interface InventoryResponse {
   outlet: AuthOutlet;
   items: InventoryItem[];
+  activity: InventoryActivity[];
+}
+
+export interface InventoryActivity {
+  id: string;
+  outletId: string;
+  sku: string;
+  name: string;
+  delta: number;
+  reason: string;
+  quantityAfter: number;
+  createdAt: string;
+}
+
+export interface InventoryChangedEvent {
+  restaurantId: string;
+  outletId: string;
+  sku: string;
+  quantity: number;
+  item: InventoryItem;
+  activity?: InventoryActivity;
+}
+
+export interface OperationsNotification {
+  id: string;
+  type: 'order_created' | 'order_status_updated' | 'inventory_low' | 'inventory_changed' | 'sla_breach' | 'activity';
+  title: string;
+  detail: string;
+  createdAt: string;
+  tone: 'success' | 'warning' | 'critical' | 'neutral';
+}
+
+export interface OperationalActivity {
+  id: string;
+  type: string;
+  title: string;
+  detail: string;
+  tone: 'success' | 'warning' | 'critical' | 'neutral';
+  outletId?: string;
+  outletName?: string;
+  actorId?: string;
+  occurredAt: string;
 }
 
 export interface DashboardIntegration {

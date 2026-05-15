@@ -4,19 +4,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: '#0b1020',
+        ink: 'rgb(var(--color-ink) / <alpha-value>)',
         indigo: {
           950: '#111135',
           900: '#17154b',
           700: '#3730a3',
           500: '#635bff'
         },
-        royal: '#246bfe',
-        cyan: '#28d7ef',
+        royal: 'rgb(var(--color-royal) / <alpha-value>)',
+        cyan: 'rgb(var(--color-cyan) / <alpha-value>)',
         graphite: '#151923',
-        line: '#e6e9f1',
-        muted: '#667085',
-        surface: '#f7f8fb'
+        line: 'rgb(var(--color-line) / <alpha-value>)',
+        muted: 'rgb(var(--color-muted) / <alpha-value>)',
+        surface: 'rgb(var(--color-surface) / <alpha-value>)',
+        panel: 'rgb(var(--color-panel) / <alpha-value>)',
+        'panel-muted': 'rgb(var(--color-panel-muted) / <alpha-value>)'
       },
       boxShadow: {
         glow: '0 24px 80px rgba(36, 107, 254, .22)',

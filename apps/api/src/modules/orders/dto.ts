@@ -1,4 +1,4 @@
-import { IsISO8601, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsISO8601, IsIn, IsInt, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { Channel, OrderStatus } from '@kitchenflow/types';
 
@@ -44,4 +44,38 @@ export class ListOrdersDto {
 export class UpdateOrderStatusDto {
   @IsIn(['pending', 'accepted', 'preparing', 'dispatched', 'delivered', 'cancelled'])
   status!: OrderStatus;
+}
+
+export class CreateOrderLineDto {
+  @IsString()
+  menuItemId!: string;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  quantity!: number;
+}
+
+export class CreateOrderDto {
+  @IsString()
+  outletId!: string;
+
+  @IsIn(['swiggy', 'zomato', 'uber_eats', 'deliveroo', 'talabat', 'doordash', 'direct'])
+  channel!: Channel;
+
+  @IsString()
+  customerName!: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(180)
+  etaMinutes = 25;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateOrderLineDto)
+  items!: CreateOrderLineDto[];
 }

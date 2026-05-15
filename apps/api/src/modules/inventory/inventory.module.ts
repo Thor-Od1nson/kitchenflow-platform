@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
+import { RealtimeModule } from '../../realtime/realtime.module';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
 
-@Module({ controllers: [InventoryController], providers: [InventoryService] })
+@Module({ imports: [RealtimeModule], controllers: [InventoryController], providers: [InventoryService] })
 export class InventoryModule {}

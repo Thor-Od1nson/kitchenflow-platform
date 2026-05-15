@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
@@ -14,13 +14,14 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { Activity, AlertCircle, ArrowUpRight, Clock, Eye, Loader2, PackageCheck } from 'lucide-react';
-import { Badge, Button, Card, MetricCard, ModalFrame, SearchInput, Skeleton } from '@kitchenflow/ui';
-import type { Channel, Order, OrderStatus, PaginatedResponse } from '@kitchenflow/types';
+import { Activity, AlertCircle, ArrowUpRight, Bell, Clock, Eye, Loader2, Minus, PackageCheck, Plus, ShoppingCart, Timer } from 'lucide-react';
+import { Badge, Button, Card, Input, MetricCard, ModalFrame, SearchInput, Skeleton } from '@kitchenflow/ui';
+import type { Channel, InventoryItem, MenuItem, OperationalActivity, OperationsNotification, Order, OrderStatus, PaginatedResponse } from '@kitchenflow/types';
 import { formatMoney, percentage, statusCopy, statusTone } from '@kitchenflow/utils';
 import { useAuth } from '@/components/auth/auth-provider';
-import { dashboardApi } from '@/lib/dashboard-api';
-import { useAnalyticsSummary, useIntegrations, useInventory, useMenus, useOrders } from '@/hooks/use-dashboard-data';
+import { dashboardApi, type CreateOrderInput } from '@/lib/dashboard-api';
+import { useActivity, useAnalyticsSummary, useIntegrations, useInventory, useMenus, useOrders } from '@/hooks/use-dashboard-data';
+import { useOpsStore } from '@/store/ops-store';
 
 const statusFilters: Array<OrderStatus | 'all'> = ['all', 'pending', 'accepted', 'preparing', 'dispatched', 'delivered', 'cancelled'];
 const channelFilters: Array<Channel | 'all'> = ['all', 'swiggy', 'zomato', 'uber_eats', 'deliveroo'];
@@ -72,10 +73,14 @@ export function OrdersPage() {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<OrderStatus | 'all'>('all');
   const [channel, setChannel] = useState<Channel | 'all'>('all');
+  const [outletId, setOutletId] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [statusMessage, setStatusMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
-  const orders = useOrders({ page, limit: 12, status, channel, query });
+  const [creatingOrder, setCreatingOrder] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ tone: 'error'; text: string } | null>(null);
+  const orders = useOrders({ page, limit: 12, status, channel, outletId, query });
+  const menus = useMenus();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const updateStatus = useMutation({
     mutationFn: ({ orderId, nextStatus }: { orderId: string; nextStatus: OrderStatus }) => dashboardApi.updateOrderStatus(orderId, nextStatus),
@@ -109,7 +114,6 @@ export function OrdersPage() {
       return { previousOrders };
     },
     onSuccess: (updatedOrder) => {
-      setStatusMessage({ tone: 'success', text: `${updatedOrder.publicId} moved to ${statusCopy[updatedOrder.status]}.` });
       void queryClient.invalidateQueries({ queryKey: ['orders'] });
       void queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
       setSelectedOrder((order) => (order?.id === updatedOrder.id ? updatedOrder : order));
@@ -121,6 +125,20 @@ export function OrdersPage() {
       setStatusMessage({ tone: 'error', text: getMutationErrorMessage(error) });
     }
   });
+  const createOrder = useMutation({
+    mutationFn: dashboardApi.createOrder,
+    onSuccess: (order) => {
+      queryClient.setQueriesData<PaginatedResponse<Order>>({ queryKey: ['orders'] }, (existing) =>
+        existing ? { ...existing, items: [order, ...existing.items.filter((item) => item.id !== order.id)].slice(0, existing.limit) } : existing
+      );
+      setCreatingOrder(false);
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
+    },
+    onError: (error) => {
+      setStatusMessage({ tone: 'error', text: getMutationErrorMessage(error) });
+    }
+  });
 
   function updateOrder(order: Order, nextStatus: OrderStatus) {
     updateStatus.mutate({ orderId: order.id, nextStatus });
@@ -128,15 +146,23 @@ export function OrdersPage() {
 
   const visibleOrders = orders.data?.items ?? [];
   const selectedOrderView = selectedOrder ? visibleOrders.find((order) => order.id === selectedOrder.id) ?? selectedOrder : null;
+  const canManageOrders = Boolean(user && ['owner', 'manager', 'kitchen'].includes(user.role));
+  const manualOrderOutlets = useMemo(
+    () => (user?.restaurant?.outlets?.length ? user.restaurant.outlets : outletsFromOrders(visibleOrders)),
+    [user?.restaurant?.outlets, visibleOrders]
+  );
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Order management" title="Kitchen workflow and delivery tracking" action="Create manual order" />
+      <PageHeader
+        eyebrow="Order management"
+        title="Kitchen workflow and delivery tracking"
+        action={canManageOrders ? 'Create manual order' : undefined}
+        onAction={canManageOrders ? () => setCreatingOrder(true) : undefined}
+      />
       {statusMessage ? (
         <div
-          className={`flex items-center gap-2 rounded-xl border p-3 text-sm font-semibold ${
-            statusMessage.tone === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-          }`}
+          className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700"
         >
           <AlertCircle className="size-4" />
           {statusMessage.text}
@@ -153,6 +179,23 @@ export function OrdersPage() {
             placeholder="Search orders or customers"
           />
           <div className="flex flex-wrap gap-2">
+            {manualOrderOutlets.length ? (
+              <select
+                className="h-9 rounded-xl border border-line bg-panel px-3 text-sm font-semibold text-ink"
+                value={outletId}
+                onChange={(event) => {
+                  setPage(1);
+                  setOutletId(event.target.value);
+                }}
+              >
+                <option value="all">All outlets</option>
+                {manualOrderOutlets.map((outlet) => (
+                  <option key={outlet.id} value={outlet.id}>
+                    {outlet.name}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             {statusFilters.map((filter) => (
               <Button
                 key={filter}
@@ -189,27 +232,31 @@ export function OrdersPage() {
         <AsyncTableState loading={orders.isLoading} error={orders.isError} empty={!orders.data?.items.length}>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1080px] text-left text-sm">
-              <thead className="border-b border-line bg-slate-50 text-xs uppercase tracking-wide text-muted">
+              <thead className="border-b border-line bg-panel-muted text-xs uppercase tracking-wide text-muted">
                 <tr>
                   {['Order', 'Channel', 'Customer', 'Outlet', 'SLA', 'Total', 'Status', 'Actions', 'Detail'].map((head) => (
                     <th key={head} className="px-5 py-4 font-bold">{head}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line bg-white">
+              <tbody className="divide-y divide-line bg-panel">
                 {orders.data?.items.map((order) => (
-                  <tr key={order.id} className="hover:bg-surface">
+                  <tr key={order.id} className="hover:bg-panel-muted">
                     <td className="px-5 py-4 font-bold text-ink">{order.publicId}</td>
                     <td className="px-5 py-4 capitalize text-muted">{order.channel.replace('_', ' ')}</td>
                     <td className="px-5 py-4">{order.customerName}</td>
                     <td className="px-5 py-4">{order.outletName}</td>
-                    <td className="px-5 py-4">{order.etaMinutes} min</td>
+                    <td className="px-5 py-4"><SlaBadge order={order} /></td>
                     <td className="px-5 py-4 font-semibold">{formatMoney(order.total.amount, order.total.currency)}</td>
                     <td className="px-5 py-4">
                       <Badge className={statusTone[order.status]}>{statusCopy[order.status]}</Badge>
                     </td>
                     <td className="px-5 py-4">
-                      <OrderActions order={order} loadingOrderId={updateStatus.variables?.orderId} loading={updateStatus.isPending} onUpdate={updateOrder} />
+                      {canManageOrders ? (
+                        <OrderActions order={order} loadingOrderId={updateStatus.variables?.orderId} loading={updateStatus.isPending} onUpdate={updateOrder} />
+                      ) : (
+                        <span className="text-xs font-semibold text-muted">Read only</span>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <Button size="sm" variant="ghost" onClick={() => setSelectedOrder(order)} aria-label={`View ${order.publicId}`}>
@@ -230,7 +277,17 @@ export function OrdersPage() {
           loadingOrderId={updateStatus.variables?.orderId}
           loading={updateStatus.isPending}
           onUpdate={updateOrder}
+          canManageOrders={canManageOrders}
           onClose={() => setSelectedOrder(null)}
+        />
+      ) : null}
+      {creatingOrder && canManageOrders ? (
+        <ManualOrderModal
+          outlets={manualOrderOutlets}
+          menus={menus.data ?? []}
+          loading={createOrder.isPending}
+          onClose={() => setCreatingOrder(false)}
+          onCreate={(input) => createOrder.mutate(input)}
         />
       ) : null}
     </div>
@@ -254,10 +311,10 @@ function KitchenQueue({ orders, loading, error }: { orders: Order[]; loading: bo
             <div className="mt-4 min-h-32 space-y-3">
               <AsyncState loading={loading} error={error} empty={!queueOrders.length}>
                 {queueOrders.slice(0, 4).map((order) => (
-                  <div key={order.id} className="rounded-lg border border-line bg-slate-50 p-3">
+                  <div key={order.id} className="rounded-lg border border-line bg-panel-muted p-3">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-bold text-ink">{order.publicId}</p>
-                      <span className="text-xs font-semibold text-muted">{order.etaMinutes}m</span>
+                      <SlaBadge order={order} compact />
                     </div>
                     <p className="mt-1 truncate text-xs font-semibold text-muted">{order.customerName}</p>
                     <p className="mt-1 truncate text-xs text-muted">{order.outletName}</p>
@@ -312,12 +369,14 @@ function OrderDetailModal({
   loadingOrderId,
   loading,
   onUpdate,
+  canManageOrders,
   onClose
 }: {
   order: Order;
   loadingOrderId?: string;
   loading: boolean;
   onUpdate: (order: Order, nextStatus: OrderStatus) => void;
+  canManageOrders: boolean;
   onClose: () => void;
 }) {
   const timeline: Array<{ label: string; value?: string | null }> = [
@@ -341,7 +400,7 @@ function OrderDetailModal({
           </div>
           <Badge className={statusTone[order.status]}>{statusCopy[order.status]}</Badge>
         </div>
-        <div className="grid gap-3 rounded-xl border border-line bg-slate-50 p-4 text-sm sm:grid-cols-3">
+        <div className="grid gap-3 rounded-xl border border-line bg-panel-muted p-4 text-sm sm:grid-cols-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-muted">Total</p>
             <p className="mt-1 font-black">{formatMoney(order.total.amount, order.total.currency)}</p>
@@ -380,19 +439,160 @@ function OrderDetailModal({
             ))}
           </div>
         </div>
-        <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
-          <OrderActions order={order} loadingOrderId={loadingOrderId} loading={loading} onUpdate={onUpdate} />
+        {canManageOrders ? (
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+            <OrderActions order={order} loadingOrderId={loadingOrderId} loading={loading} onUpdate={onUpdate} />
+          </div>
+        ) : null}
+      </div>
+    </ModalFrame>
+  );
+}
+
+function ManualOrderModal({
+  outlets,
+  menus,
+  loading,
+  onCreate,
+  onClose
+}: {
+  outlets: Array<{ id: string; name: string; city: string }>;
+  menus: MenuItem[];
+  loading: boolean;
+  onCreate: (input: CreateOrderInput) => void;
+  onClose: () => void;
+}) {
+  const defaultOutletId = outlets[0]?.id ?? '';
+  const defaultMenuId = menus[0]?.id ?? '';
+  const [outletId, setOutletId] = useState(defaultOutletId);
+  const [channel, setChannel] = useState<Channel>('direct');
+  const [customerName, setCustomerName] = useState('');
+  const [etaMinutes, setEtaMinutes] = useState(25);
+  const [lines, setLines] = useState<Array<{ menuItemId: string; quantity: number }>>([{ menuItemId: defaultMenuId, quantity: 1 }]);
+  useEffect(() => {
+    if (!outletId && defaultOutletId) setOutletId(defaultOutletId);
+    if (defaultMenuId) {
+      setLines((current) => current.map((line) => (line.menuItemId ? line : { ...line, menuItemId: defaultMenuId })));
+    }
+  }, [defaultMenuId, defaultOutletId, outletId]);
+
+  const total = lines.reduce((sum, line) => {
+    const item = menus.find((menu) => menu.id === line.menuItemId);
+    return sum + (item?.price.amount ?? 0) * line.quantity;
+  }, 0);
+
+  function submit() {
+    const items = lines.filter((line) => line.menuItemId && line.quantity > 0);
+    if (!outletId || !customerName.trim() || !items.length) return;
+    onCreate({ outletId, channel, customerName: customerName.trim(), etaMinutes, items });
+  }
+
+  return (
+    <ModalFrame title="Create manual order" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="space-y-1 text-sm font-semibold">
+            Customer
+            <Input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Customer name" />
+          </label>
+          <label className="space-y-1 text-sm font-semibold">
+            ETA minutes
+            <Input type="number" min={1} value={etaMinutes} onChange={(event) => setEtaMinutes(Number(event.target.value))} />
+          </label>
+          <label className="space-y-1 text-sm font-semibold">
+            Outlet
+            <select className="h-10 w-full rounded-xl border border-line bg-panel px-3 text-sm text-ink" value={outletId} onChange={(event) => setOutletId(event.target.value)}>
+              {outlets.map((outlet) => (
+                <option key={outlet.id} value={outlet.id}>{outlet.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1 text-sm font-semibold">
+            Channel
+            <select className="h-10 w-full rounded-xl border border-line bg-panel px-3 text-sm text-ink" value={channel} onChange={(event) => setChannel(event.target.value as Channel)}>
+              {['direct', 'swiggy', 'zomato', 'uber_eats', 'deliveroo', 'talabat', 'doordash'].map((item) => (
+                <option key={item} value={item}>{item.replace('_', ' ')}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-black">Items</h3>
+            <Button size="sm" variant="secondary" onClick={() => setLines((current) => [...current, { menuItemId: menus[0]?.id ?? '', quantity: 1 }])}>
+              <Plus className="size-4" />
+              Add
+            </Button>
+          </div>
+          {lines.map((line, index) => (
+            <div key={`${line.menuItemId}-${index}`} className="grid gap-2 sm:grid-cols-[1fr_88px_40px]">
+              <select
+                className="h-10 rounded-xl border border-line bg-panel px-3 text-sm text-ink"
+                value={line.menuItemId}
+                onChange={(event) =>
+                  setLines((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, menuItemId: event.target.value } : item)))
+                }
+              >
+                {menus.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </select>
+              <Input
+                type="number"
+                min={1}
+                value={line.quantity}
+                onChange={(event) =>
+                  setLines((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, quantity: Number(event.target.value) } : item)))
+                }
+              />
+              <Button size="sm" variant="ghost" onClick={() => setLines((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label="Remove item">
+                <Minus className="size-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between rounded-xl border border-line bg-panel-muted p-3">
+          <span className="text-sm font-bold">Total</span>
+          <span className="text-lg font-black">{formatMoney(total)}</span>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-line pt-4">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={loading || !customerName.trim() || !lines.some((line) => line.menuItemId)}>
+            {loading ? <Loader2 className="size-4 animate-spin" /> : <ShoppingCart className="size-4" />}
+            Create order
+          </Button>
         </div>
       </div>
     </ModalFrame>
   );
 }
 
+function SlaBadge({ order, compact }: { order: Order; compact?: boolean }) {
+  const now = useNow();
+  const state = getSlaState(order, now);
+  const label = state.remainingMs <= 0 ? `${Math.abs(state.minutes)}m overdue` : `${state.minutes}m left`;
+  const tone =
+    state.level === 'red'
+      ? 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-800'
+      : state.level === 'yellow'
+        ? 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-800'
+        : 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-800';
+
+  return (
+    <Badge className={tone}>
+      {compact ? null : <Timer className="mr-1 size-3" />}
+      {label}
+    </Badge>
+  );
+}
+
 export function MenusPage() {
+  const { user } = useAuth();
+  const canManageMenus = Boolean(user && ['owner', 'manager'].includes(user.role));
   const menus = useMenus();
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Menu management" title="Pricing, availability, variants, and outlet scopes" action="Bulk sync" />
+      <PageHeader eyebrow="Menu management" title="Pricing, availability, variants, and outlet scopes" action={canManageMenus ? 'Bulk sync' : undefined} />
       <AsyncState loading={menus.isLoading} error={menus.isError} empty={!menus.data?.length}>
         <div className="grid gap-4 lg:grid-cols-3">
           {menus.data?.map((item) => (
@@ -402,14 +602,20 @@ export function MenusPage() {
                   <p className="text-xs font-bold uppercase tracking-wide text-royal">{item.category}</p>
                   <h3 className="mt-2 text-lg font-bold">{item.name}</h3>
                 </div>
-                <button className={`h-6 w-11 rounded-full p-1 transition ${item.available ? 'bg-emerald-500' : 'bg-slate-300'}`} aria-label="Toggle availability">
-                  <span className={`block size-4 rounded-full bg-white transition ${item.available ? 'translate-x-5' : ''}`} />
-                </button>
+                {canManageMenus ? (
+                  <button className={`h-6 w-11 rounded-full p-1 transition ${item.available ? 'bg-emerald-500' : 'bg-slate-300'}`} aria-label="Toggle availability">
+                    <span className={`block size-4 rounded-full bg-white transition ${item.available ? 'translate-x-5' : ''}`} />
+                  </button>
+                ) : (
+                  <Badge className={item.available ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-slate-100 text-slate-600 ring-slate-200'}>
+                    {item.available ? 'available' : 'paused'}
+                  </Badge>
+                )}
               </div>
               <p className="mt-4 text-2xl font-black">{formatMoney(item.price.amount, item.price.currency)}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {item.variants.map((variant) => (
-                  <Badge key={variant} className="bg-slate-50 text-slate-700 ring-line">{variant}</Badge>
+                  <Badge key={variant} className="bg-panel-muted text-muted ring-line">{variant}</Badge>
                 ))}
               </div>
               <p className="mt-4 text-sm text-muted">{item.outletScope.join(', ')}</p>
@@ -425,6 +631,7 @@ export function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Analytics" title="Revenue, conversion, heatmaps, and outlet performance" action="Schedule digest" />
+      <KitchenPerformancePanel />
       <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
         <RevenuePanel />
         <OutletPanel />
@@ -435,10 +642,11 @@ export function AnalyticsPage() {
 }
 
 export function IntegrationsPage() {
+  const { user } = useAuth();
   const integrations = useIntegrations();
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Integration marketplace" title="Aggregator, POS, accounting, and webhook health" action="Add connector" />
+      <PageHeader eyebrow="Integration marketplace" title="Aggregator, POS, accounting, and webhook health" action={user?.role === 'owner' ? 'Add connector' : undefined} />
       <AsyncState loading={integrations.isLoading} error={integrations.isError} empty={!integrations.data?.length}>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {integrations.data?.map((integration) => (
@@ -453,7 +661,7 @@ export function IntegrationsPage() {
               </div>
               <h3 className="mt-5 text-xl font-black">{integration.label}</h3>
               <p className="mt-2 text-sm text-muted">Last sync {integration.lastSync}. Webhook delivery health at {integration.webhookHealth}%.</p>
-              <div className="mt-5 h-2 rounded-full bg-slate-100">
+              <div className="mt-5 h-2 rounded-full bg-panel-muted">
                 <div className="h-full rounded-full bg-royal" style={{ width: `${integration.webhookHealth}%` }} />
               </div>
             </Card>
@@ -466,15 +674,29 @@ export function IntegrationsPage() {
 
 export function InventoryPage() {
   const { user } = useAuth();
-  const [outletId, setOutletId] = useState(user?.restaurant.outlets[0]?.id);
+  const canAdjustInventory = Boolean(user && ['owner', 'manager'].includes(user.role));
+  const outlets = user?.restaurant?.outlets ?? [];
+  const [outletId, setOutletId] = useState(outlets[0]?.id);
   const inventory = useInventory(outletId);
+  const queryClient = useQueryClient();
+  const adjustInventory = useMutation({
+    mutationFn: ({ item, delta, reason }: { item: InventoryItem; delta: number; reason: string }) =>
+      dashboardApi.adjustInventory(item.outletId, item.id, delta, reason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      void queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
+    }
+  });
+  useEffect(() => {
+    if (!outletId && outlets[0]?.id) setOutletId(outlets[0].id);
+  }, [outletId, outlets]);
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Inventory" title="Stock intelligence and outlet replenishment" action="Configure" />
+      <PageHeader eyebrow="Inventory" title="Stock intelligence and outlet replenishment" action={canAdjustInventory ? 'Sync stock' : undefined} />
       <Card className="p-4">
         <div className="flex flex-wrap gap-2">
-          {user?.restaurant.outlets.map((outlet) => (
+          {outlets.map((outlet) => (
             <Button key={outlet.id} variant={outletId === outlet.id ? 'primary' : 'secondary'} size="sm" onClick={() => setOutletId(outlet.id)}>
               {outlet.name}
             </Button>
@@ -482,25 +704,58 @@ export function InventoryPage() {
         </div>
       </Card>
       <AsyncState loading={inventory.isLoading} error={inventory.isError} empty={!inventory.data?.items.length}>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {inventory.data?.items.map((item) => (
-            <Card key={item.id} className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-royal">{item.sku}</p>
-                  <h3 className="mt-2 text-lg font-bold">{item.name}</h3>
+        <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            {inventory.data?.items.map((item) => (
+              <Card key={item.id} className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-royal">{item.sku}</p>
+                    <h3 className="mt-2 text-lg font-bold">{item.name}</h3>
+                  </div>
+                  <Badge className={inventoryTone(item.risk)}>{item.risk}</Badge>
                 </div>
-                <Badge className={item.risk === 'critical' ? 'bg-rose-50 text-rose-700 ring-rose-200' : item.risk === 'warning' ? 'bg-amber-50 text-amber-700 ring-amber-200' : 'bg-emerald-50 text-emerald-700 ring-emerald-200'}>
-                  {item.risk}
-                </Badge>
-              </div>
-              <p className="mt-4 text-2xl font-black">{item.quantity} {item.unit}</p>
-              <p className="mt-1 text-sm text-muted">Reorder at {item.reorderAt} {item.unit}</p>
-              <div className="mt-5 h-2 rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-royal" style={{ width: `${item.stockPercent}%` }} />
-              </div>
-            </Card>
-          ))}
+                <p className="mt-4 text-2xl font-black">{item.quantity} {item.unit}</p>
+                <p className="mt-1 text-sm text-muted">Reorder at {item.reorderAt} {item.unit}</p>
+                <div className="mt-5 h-2 rounded-full bg-panel-muted">
+                  <div className={`h-full rounded-full ${item.risk === 'critical' ? 'bg-rose-500' : item.risk === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${item.stockPercent}%` }} />
+                </div>
+                {canAdjustInventory ? (
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => adjustInventory.mutate({ item, delta: 5, reason: 'Manual restock' })} disabled={adjustInventory.isPending}>
+                      <Plus className="size-4" />
+                      Restock
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => adjustInventory.mutate({ item, delta: -1, reason: 'Stock deduction simulation' })} disabled={adjustInventory.isPending || item.quantity <= 0}>
+                      <Minus className="size-4" />
+                      Deduct
+                    </Button>
+                  </div>
+                ) : null}
+              </Card>
+            ))}
+          </div>
+          <Card className="p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold">Inventory activity</h2>
+              <PackageCheck className="size-5 text-royal" />
+            </div>
+            <div className="mt-4 space-y-3">
+              <AsyncState loading={inventory.isLoading} error={inventory.isError} empty={!inventory.data?.activity.length}>
+                {inventory.data?.activity.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-line bg-panel-muted p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-bold">{item.name}</p>
+                      <span className={`text-sm font-black ${item.delta < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        {item.delta > 0 ? '+' : ''}{item.delta}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted">{item.reason} - now {item.quantityAfter}</p>
+                  </div>
+                ))}
+              </AsyncState>
+            </div>
+          </Card>
         </div>
       </AsyncState>
     </div>
@@ -526,14 +781,63 @@ export function SimpleOpsPage({ title, eyebrow }: { title: string; eyebrow: stri
   );
 }
 
-function PageHeader({ eyebrow, title, action }: { eyebrow: string; title: string; action: string }) {
+export function NotificationsPage() {
+  const notifications = useOpsStore((state) => state.notifications);
+  const clearNotifications = useOpsStore((state) => state.clearNotifications);
+  const activity = useActivity();
+  const activityNotifications = (activity.data ?? []).map(activityToNotification);
+  const rows = [...notifications, ...activityNotifications].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+
+  return (
+    <div className="space-y-6">
+      <PageHeader eyebrow="Notifications" title="Operational alerts and incident routing" action="Clear" onAction={clearNotifications} />
+      <Card className="overflow-hidden">
+        <AsyncTableState loading={activity.isLoading} error={activity.isError} empty={!rows.length}>
+          <div className="divide-y divide-line">
+            {rows.map((notification) => (
+              <NotificationRow key={notification.id} notification={notification} />
+            ))}
+          </div>
+        </AsyncTableState>
+      </Card>
+    </div>
+  );
+}
+
+function activityToNotification(activity: OperationalActivity): OperationsNotification {
+  return {
+    id: `activity:${activity.id}`,
+    type: 'activity',
+    title: activity.title,
+    detail: activity.outletName ? `${activity.detail} - ${activity.outletName}` : activity.detail,
+    createdAt: activity.occurredAt,
+    tone: activity.tone
+  };
+}
+
+function NotificationRow({ notification }: { notification: OperationsNotification }) {
+  return (
+    <div className="flex items-start gap-3 p-4">
+      <span className={`mt-1 grid size-9 shrink-0 place-items-center rounded-full ${notificationTone(notification.tone)}`}>
+        <Bell className="size-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="font-bold">{notification.title}</p>
+        <p className="mt-1 text-sm text-muted">{notification.detail}</p>
+        <p className="mt-2 text-xs font-semibold text-muted">{formatDateTime(notification.createdAt)}</p>
+      </div>
+    </div>
+  );
+}
+
+function PageHeader({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {
   return (
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
         <p className="text-sm font-bold uppercase tracking-wide text-royal">{eyebrow}</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl">{title}</h1>
       </div>
-      <Button>{action}</Button>
+      {action ? <Button onClick={onAction}>{action}</Button> : null}
     </div>
   );
 }
@@ -547,7 +851,7 @@ function RevenuePanel() {
           <h2 className="text-lg font-bold">Revenue and order trend</h2>
           <p className="text-sm text-muted">Live GMV across aggregators and direct channels</p>
         </div>
-        <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">polling 30s</Badge>
+        <Badge className="bg-emerald-50 text-emerald-700 ring-emerald-200">realtime</Badge>
       </div>
       <div className="mt-5 h-80">
         <AsyncChartState loading={summary.isLoading} error={summary.isError} empty={!summary.data?.revenueSeries.length}>
@@ -602,7 +906,7 @@ function IntegrationsPanel({ items, loading, error }: { items: Array<{ id: strin
           {items.slice(0, 4).map((item) => (
             <div key={item.id} className="flex items-center justify-between">
               <span className="font-semibold">{item.label}</span>
-              <Badge className="bg-slate-50 text-slate-700 ring-line">{item.status}</Badge>
+              <Badge className="bg-panel-muted text-muted ring-line">{item.status}</Badge>
             </div>
           ))}
         </AsyncState>
@@ -628,7 +932,7 @@ function InventoryRiskPanel() {
                 <span>{item.stockPercent}%</span>
               </div>
               <p className="mt-1 text-xs text-muted">{item.outletName}</p>
-              <div className="mt-2 h-2 rounded-full bg-slate-100">
+              <div className="mt-2 h-2 rounded-full bg-panel-muted">
                 <div className="h-full rounded-full bg-royal" style={{ width: `${item.stockPercent}%` }} />
               </div>
             </div>
@@ -636,6 +940,32 @@ function InventoryRiskPanel() {
         </AsyncState>
       </div>
     </Card>
+  );
+}
+
+function KitchenPerformancePanel() {
+  const summary = useAnalyticsSummary();
+  const activeLoad = summary.data
+    ? summary.data.orderStatus.pending + summary.data.orderStatus.accepted + summary.data.orderStatus.preparing + summary.data.orderStatus.dispatched
+    : 0;
+  const throughput = summary.data?.totals.ordersToday ?? 0;
+  const cancellationRate = summary.data?.totals.cancellationRate ?? 0;
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <MetricCard label="Active kitchen load" value={String(activeLoad)} detail="Orders in live workflow">
+        <Activity className="size-5 text-royal" />
+      </MetricCard>
+      <MetricCard label="Prep time" value={`${summary.data?.totals.averagePrepTime ?? 0}m`} detail="Average today">
+        <Clock className="size-5 text-royal" />
+      </MetricCard>
+      <MetricCard label="Throughput" value={String(throughput)} detail="Orders completed today">
+        <PackageCheck className="size-5 text-royal" />
+      </MetricCard>
+      <MetricCard label="Cancellation" value={`${cancellationRate}%`} detail="Current day rate">
+        <AlertCircle className="size-5 text-royal" />
+      </MetricCard>
+    </div>
   );
 }
 
@@ -670,7 +1000,7 @@ function ChannelPanel() {
       <div className="mt-5 grid gap-3 md:grid-cols-4">
         <AsyncState loading={summary.isLoading} error={summary.isError} empty={!summary.data?.channelBreakdown.length}>
           {summary.data?.channelBreakdown.map((channel) => (
-            <div key={channel.channel} className="rounded-xl border border-line p-4">
+            <div key={channel.channel} className="rounded-xl border border-line bg-panel p-4">
               <p className="text-sm font-bold capitalize">{channel.channel.replace('_', ' ')}</p>
               <p className="mt-2 text-2xl font-black">{formatMoney(channel.revenue)}</p>
               <p className="text-sm text-muted">{channel.orders} orders</p>
@@ -737,7 +1067,7 @@ function ErrorState() {
 }
 
 function EmptyState() {
-  return <div className="rounded-xl border border-line bg-slate-50 p-4 text-sm font-semibold text-muted">No operational data found.</div>;
+  return <div className="rounded-xl border border-line bg-panel-muted p-4 text-sm font-semibold text-muted">No operational data found.</div>;
 }
 
 function formatKpiValue(value: number, unit: string) {
@@ -782,4 +1112,59 @@ function getMutationErrorMessage(error: unknown) {
     if (message) return message;
   }
   return 'Could not update order status.';
+}
+
+function useNow() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return now;
+}
+
+function getSlaState(order: Order, now: number) {
+  if (order.status === 'delivered' || order.status === 'cancelled') {
+    return { level: 'green' as const, remainingMs: 0, minutes: 0 };
+  }
+
+  const placedAt = Date.parse(order.placedAt);
+  if (Number.isNaN(placedAt)) {
+    return { level: 'green' as const, remainingMs: order.etaMinutes * 60_000, minutes: order.etaMinutes };
+  }
+
+  const dueAt = placedAt + order.etaMinutes * 60_000;
+  const remainingMs = dueAt - now;
+  const minutes = Math.ceil(Math.abs(remainingMs) / 60_000);
+  const remainingRatio = remainingMs / Math.max(order.etaMinutes * 60_000, 1);
+  const level = remainingMs <= 0 ? 'red' : remainingRatio <= 0.25 ? 'yellow' : 'green';
+  return { level, remainingMs, minutes };
+}
+
+function inventoryTone(risk: InventoryItem['risk']) {
+  if (risk === 'critical') return 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-800';
+  if (risk === 'warning') return 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-800';
+  return 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-800';
+}
+
+function notificationTone(tone: OperationsNotification['tone']) {
+  if (tone === 'critical') return 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200';
+  if (tone === 'warning') return 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200';
+  if (tone === 'success') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200';
+  return 'bg-panel-muted text-muted';
+}
+
+function outletsFromOrders(orders: Order[]) {
+  return Array.from(
+    new Map(
+      orders.map((order) => [
+        order.outletId,
+        {
+          id: order.outletId,
+          name: order.outletName,
+          city: order.outletCity
+        }
+      ])
+    ).values()
+  );
 }

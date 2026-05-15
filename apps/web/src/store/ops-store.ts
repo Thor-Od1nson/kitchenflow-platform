@@ -1,15 +1,19 @@
 'use client';
 
 import { create } from 'zustand';
-import type { Order, OrderStatus } from '@kitchenflow/types';
+import type { OperationsNotification, Order, OrderStatus } from '@kitchenflow/types';
 import { orders } from '@/lib/data';
 
 interface OpsStore {
   darkMode: boolean;
+  notifications: OperationsNotification[];
   orders: Order[];
   query: string;
   status: OrderStatus | 'all';
   toggleDarkMode: () => void;
+  addNotification: (notification: Omit<OperationsNotification, 'id' | 'createdAt'> & { id?: string; createdAt?: string }) => void;
+  dismissNotification: (id: string) => void;
+  clearNotifications: () => void;
   setQuery: (query: string) => void;
   setStatus: (status: OrderStatus | 'all') => void;
   advanceOrder: (id: string) => void;
@@ -20,10 +24,27 @@ const flow: OrderStatus[] = ['pending', 'accepted', 'preparing', 'dispatched', '
 
 export const useOpsStore = create<OpsStore>((set) => ({
   darkMode: false,
+  notifications: [],
   orders,
   query: '',
   status: 'all',
   toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
+  addNotification: (notification) =>
+    set((state) => ({
+      notifications: [
+        {
+          ...notification,
+          id: notification.id ?? `note_${Date.now()}`,
+          createdAt: notification.createdAt ?? new Date().toISOString()
+        },
+        ...state.notifications.filter((item) => item.id !== notification.id)
+      ].slice(0, 30)
+    })),
+  dismissNotification: (id) =>
+    set((state) => ({
+      notifications: state.notifications.filter((notification) => notification.id !== id)
+    })),
+  clearNotifications: () => set({ notifications: [] }),
   setQuery: (query) => set({ query }),
   setStatus: (status) => set({ status }),
   advanceOrder: (id) =>

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { OperationalActivity } from '@kitchenflow/types';
 import type { IntegrationStatus, OrderStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -116,6 +117,31 @@ export class AnalyticsService {
     };
   }
 
+  async activity(restaurantId: string): Promise<OperationalActivity[]> {
+    const events = await this.prisma.analyticsEvent.findMany({
+      where: { restaurantId },
+      orderBy: { occurredAt: 'desc' },
+      take: 40
+    });
+
+    return events.map((event) => {
+      const dimensions = event.dimensions as Record<string, unknown>;
+      const metrics = event.metrics as Record<string, unknown>;
+      const type = event.type;
+      return {
+        id: event.id,
+        type,
+        title: this.activityTitle(type),
+        detail: String(metrics.detail ?? dimensions.detail ?? this.activityTitle(type)),
+        tone: this.activityTone(type),
+        outletId: typeof dimensions.outletId === 'string' ? dimensions.outletId : undefined,
+        outletName: typeof dimensions.outlet === 'string' ? dimensions.outlet : undefined,
+        actorId: typeof dimensions.actorId === 'string' ? dimensions.actorId : undefined,
+        occurredAt: event.occurredAt.toISOString()
+      };
+    });
+  }
+
   private countByStatus(statuses: OrderStatus[]) {
     return statuses.reduce<Record<OrderStatus, number>>(
       (acc, status) => ({ ...acc, [status]: acc[status] + 1 }),
@@ -144,5 +170,21 @@ export class AnalyticsService {
     }, 0);
     const outletNoise = outletId.charCodeAt(outletId.length - 1) % 3;
     return Math.max(82, 99 - statusPenalty - outletNoise);
+  }
+
+  private activityTitle(type: string) {
+    if (type === 'order_created') return 'Order created';
+    if (type === 'order_status_changed') return 'Order status changed';
+    if (type === 'inventory_adjusted') return 'Inventory adjusted';
+    if (type === 'login') return 'User login';
+    if (type === 'logout') return 'User logout';
+    if (type === 'inventory_warning') return 'Inventory warning';
+    return 'Operational activity';
+  }
+
+  private activityTone(type: string): OperationalActivity['tone'] {
+    if (type === 'inventory_warning') return 'warning';
+    if (type === 'order_created' || type === 'login') return 'success';
+    return 'neutral';
   }
 }

@@ -11,19 +11,19 @@ export class MenusController {
   constructor(private readonly menus: MenusService) {}
 
   @Get()
-  @Roles('owner', 'admin', 'ops_manager', 'store_manager')
+  @Roles('owner', 'manager', 'support')
   list(@CurrentUser() user: AuthenticatedUser) {
     return this.menus.list(user.restaurantId);
   }
 
   @Patch('availability')
-  @Roles('owner', 'admin', 'ops_manager', 'store_manager')
+  @Roles('owner', 'manager')
   updateAvailability(@Body() body: { ids: string[]; available: boolean }) {
     return this.menus.updateAvailability(body.ids, body.available);
   }
 
   @Post('sync')
-  @Roles('owner', 'admin', 'ops_manager')
+  @Roles('owner', 'manager')
   sync() {
     return { accepted: true, job: 'menu-sync', queuedAt: new Date().toISOString() };
   }

@@ -25,6 +25,14 @@ export class AuthService {
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Invalid credentials');
     }
+    await this.prisma.analyticsEvent.create({
+      data: {
+        restaurantId: user.restaurantId,
+        type: 'login',
+        dimensions: { actorId: user.id },
+        metrics: { detail: `${user.fullName} signed in` }
+      }
+    });
     return this.issueTokens(user.id, user.restaurantId, user.role);
   }
 
@@ -66,6 +74,14 @@ export class AuthService {
         data: { revokedAt: new Date() }
       });
     }
+    await this.prisma.analyticsEvent.create({
+      data: {
+        restaurantId: payload.restaurantId,
+        type: 'logout',
+        dimensions: { actorId: payload.sub },
+        metrics: { detail: 'User signed out' }
+      }
+    });
     return { success: true };
   }
 
