@@ -19,6 +19,9 @@ services:
       dockerfile: infra/docker/api.Dockerfile
     env_file:
       - apps/api/.env.example
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/kitchenflow
+      REDIS_URL: redis://redis:6379
     ports:
       - "4000:4000"
     depends_on:
