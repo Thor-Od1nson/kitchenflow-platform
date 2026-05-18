@@ -7,6 +7,7 @@ import { CorrelationMiddleware } from './common/middleware/correlation.middlewar
 import { ObservabilityModule } from './common/observability/observability.module';
 import { validateEnv } from './config/env';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { AggregatorModule } from './modules/aggregator/aggregator.module';
 import { AuditLogModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
@@ -14,6 +15,9 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { MenusModule } from './modules/menus/menus.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { PayoutsModule } from './modules/payouts/payouts.module';
+import { QueuesModule } from './modules/queues/queues.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RealtimeModule } from './realtime/realtime.module';
 
@@ -27,6 +31,10 @@ import { RealtimeModule } from './realtime/realtime.module';
     HealthModule,
     AuthModule,
     OrdersModule,
+    QueuesModule,
+    AggregatorModule,
+    WebhooksModule,
+    PayoutsModule,
     MenusModule,
     IntegrationsModule,
     InventoryModule,

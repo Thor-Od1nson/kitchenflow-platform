@@ -21,4 +21,16 @@ export class AnalyticsController {
   activity(@CurrentUser() user: AuthenticatedUser) {
     return this.analytics.activity(user.restaurantId);
   }
+
+  @Get('control-center')
+  @Roles('owner')
+  controlCenter(@CurrentUser() user: AuthenticatedUser) {
+    return this.analytics.controlCenter(user.restaurantId);
+  }
+
+  @Get('operational-intelligence')
+  @Roles('owner', 'manager')
+  operationalIntelligence(@CurrentUser() user: AuthenticatedUser) {
+    return this.analytics.operationalIntelligence(user.restaurantId);
+  }
 }

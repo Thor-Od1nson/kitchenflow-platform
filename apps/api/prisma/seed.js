@@ -66,6 +66,9 @@ async function main() {
   });
 
   await prisma.refreshToken.deleteMany({ where: { user: { restaurantId: restaurant.id } } });
+  await prisma.webhookEvent.deleteMany({ where: { restaurantId: restaurant.id } });
+  await prisma.payoutLedger.deleteMany({ where: { restaurantId: restaurant.id } });
+  await prisma.jobActivity.deleteMany({ where: { restaurantId: restaurant.id } });
   await prisma.analyticsEvent.deleteMany({ where: { restaurantId: restaurant.id } });
   await prisma.order.deleteMany({ where: { restaurantId: restaurant.id } });
   await prisma.menuOutletScope.deleteMany({ where: { menuItem: { restaurantId: restaurant.id } } });

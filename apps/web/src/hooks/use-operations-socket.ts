@@ -12,6 +12,7 @@ import type {
   PaginatedResponse
 } from '@kitchenflow/types';
 import { useAuth } from '@/components/auth/auth-provider';
+import type { OrdersQuery } from '@/lib/dashboard-api';
 import { useOpsStore } from '@/store/ops-store';
 
 const SOCKET_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/v1').replace(/\/v1$/, '');
@@ -21,10 +22,11 @@ export function useOperationsSocket() {
   const queryClient = useQueryClient();
   const addNotification = useOpsStore((state) => state.addNotification);
   const setSocketStatus = useOpsStore((state) => state.setSocketStatus);
+  const markRealtimeEvent = useOpsStore((state) => state.markRealtimeEvent);
   const restaurantId = user?.restaurantId ?? getRestaurantIdFromToken(tokens?.accessToken);
 
   useEffect(() => {
-    if (!restaurantId) return;
+    if (!restaurantId || !tokens?.accessToken) return;
 
     const socket = io(`${SOCKET_URL}/operations`, {
       auth: { token: tokens?.accessToken, restaurantId },
@@ -36,6 +38,7 @@ export function useOperationsSocket() {
 
     const joinRoom = () => {
       setSocketStatus('connected');
+      markRealtimeEvent();
       socket.emit('notifications.join', { restaurantId });
     };
 
@@ -48,28 +51,34 @@ export function useOperationsSocket() {
     };
 
     const refetchOperations = () => {
-      void queryClient.invalidateQueries({ queryKey: ['orders'] });
+      void queryClient.refetchQueries({ queryKey: ['orders'], type: 'active' });
       void queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
       void queryClient.invalidateQueries({ queryKey: ['activity'] });
     };
 
     const upsertOrder = (order: Order) => {
-      queryClient.setQueriesData<PaginatedResponse<Order>>(
-        { queryKey: ['orders'] },
-        (existing) =>
-          existing
-            ? {
-                ...existing,
-                items: existing.items.some((item) => item.id === order.id)
-                  ? existing.items.map((item) => (item.id === order.id ? order : item))
-                  : [order, ...existing.items].slice(0, existing.limit ?? existing.items.length + 1)
-              }
-            : existing
-      );
+      const queries = queryClient.getQueriesData<PaginatedResponse<Order>>({ queryKey: ['orders'] });
+      queries.forEach(([queryKey, existing]) => {
+        if (!existing) return;
+        const query = Array.isArray(queryKey) ? (queryKey[1] as OrdersQuery | undefined) : undefined;
+        const matches = orderMatchesQuery(order, query);
+        const hasOrder = existing.items.some((item) => item.id === order.id);
+        const items = matches
+          ? hasOrder
+            ? existing.items.map((item) => (item.id === order.id ? order : item))
+            : [order, ...existing.items].slice(0, existing.limit ?? existing.items.length + 1)
+          : existing.items.filter((item) => item.id !== order.id);
+        queryClient.setQueryData(queryKey, {
+          ...existing,
+          items,
+          total: matches && !hasOrder ? existing.total + 1 : !matches && hasOrder ? Math.max(0, existing.total - 1) : existing.total
+        });
+      });
     };
 
     const handleOrderCreated = (event: OrderCreatedEvent) => {
       upsertOrder(event.order);
+      markRealtimeEvent();
       addNotification({
         type: 'order_created',
         id: `order_created:${event.order.id}:${event.order.updatedAt}`,
@@ -82,6 +91,7 @@ export function useOperationsSocket() {
 
     const handleOrderStatusUpdated = (event: OrderStatusUpdatedEvent) => {
       upsertOrder(event.order);
+      markRealtimeEvent();
       addNotification({
         type: 'order_status_updated',
         id: `order_status_updated:${event.order.id}:${event.previousStatus}:${event.newStatus}:${event.order.updatedAt}`,
@@ -111,6 +121,7 @@ export function useOperationsSocket() {
         detail: `${event.item.name} is now ${event.item.quantity} ${event.item.unit}`,
         tone: event.item.risk === 'critical' ? 'critical' : event.item.risk === 'warning' ? 'warning' : 'neutral'
       });
+      markRealtimeEvent();
       void queryClient.invalidateQueries({ queryKey: ['inventory'] });
       void queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
       void queryClient.invalidateQueries({ queryKey: ['activity'] });
@@ -135,7 +146,19 @@ export function useOperationsSocket() {
       socket.disconnect();
       setSocketStatus('idle');
     };
-  }, [addNotification, queryClient, restaurantId, setSocketStatus, tokens?.accessToken]);
+  }, [addNotification, markRealtimeEvent, queryClient, restaurantId, setSocketStatus, tokens?.accessToken]);
+
+  useEffect(() => {
+    if (useOpsStore.getState().socketStatus === 'connected') return;
+    const timer = window.setInterval(() => {
+      if (useOpsStore.getState().socketStatus !== 'connected') {
+        void queryClient.refetchQueries({ queryKey: ['orders'], type: 'active' });
+        void queryClient.refetchQueries({ queryKey: ['control-center'], type: 'active' });
+        void queryClient.refetchQueries({ queryKey: ['queue-metrics'], type: 'active' });
+      }
+    }, 10_000);
+    return () => window.clearInterval(timer);
+  }, [queryClient, restaurantId, tokens?.accessToken]);
 }
 
 function getRestaurantIdFromToken(token?: string) {
@@ -147,4 +170,18 @@ function getRestaurantIdFromToken(token?: string) {
   } catch {
     return undefined;
   }
+}
+
+function orderMatchesQuery(order: Order, query?: OrdersQuery) {
+  if (!query) return true;
+  if (query.status && query.status !== 'all' && order.status !== query.status) return false;
+  if (query.channel && query.channel !== 'all' && order.channel !== query.channel) return false;
+  if (query.outletId && query.outletId !== 'all' && order.outletId !== query.outletId) return false;
+  if (query.query) {
+    const needle = query.query.toLowerCase();
+    if (!order.publicId.toLowerCase().includes(needle) && !order.customerName.toLowerCase().includes(needle)) return false;
+  }
+  if (query.dateFrom && Date.parse(order.placedAt) < Date.parse(query.dateFrom)) return false;
+  if (query.dateTo && Date.parse(order.placedAt) > Date.parse(query.dateTo)) return false;
+  return true;
 }

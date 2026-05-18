@@ -194,8 +194,111 @@ export interface AnalyticsSummary {
   revenueSeries: RevenuePoint[];
   channelBreakdown: ChannelBreakdown[];
   outletPerformance: OutletPerformance[];
+  slaMetrics: {
+    breachesToday: number;
+    breachRate: number;
+    averageLatencyMinutes: number;
+  };
+  channelProfitability: Array<{ channel: Channel | string; gross: number; expectedPayout: number; marginPercent: number }>;
+  inventoryConsumptionTrends: Array<{ sku: string; name: string; consumed: number; unit: string }>;
   integrationHealth: Array<{ status: string; count: number }>;
   inventoryWarnings: InventoryWarning[];
+}
+
+export interface OperationalIntelligenceSummary {
+  generatedAt: string;
+  activeOrders: number;
+  slaBreachCount: number;
+  delayedDispatchCount: number;
+  failedWebhookCount: number;
+  realtimeOrderThroughput: number;
+  websocket: {
+    activeConnections: number;
+    totalConnections: number;
+    totalDisconnects: number;
+    emittedEvents: number;
+    rejectedConnections: number;
+  };
+  systemHealth: Array<{ label: string; status: 'healthy' | 'warning' | 'critical'; detail: string }>;
+  outletStatus: Array<{ outletId: string; outlet: string; city: string; activeOrders: number; slaBreaches: number; status: 'online' | 'strained' | 'critical' }>;
+}
+
+export interface QueueMetrics {
+  generatedAt: string;
+  workerHeartbeatAt?: string | null;
+  workerOnline: boolean;
+  counts: {
+    waiting: number;
+    active: number;
+    delayed: number;
+    completed: number;
+    failed: number;
+    paused: number;
+    backlog: number;
+  };
+  retryCount: number;
+  averageProcessingMs: number;
+}
+
+export interface AdvancedOperationalAnalytics {
+  generatedAt: string;
+  slaHeatmap: Array<{ outlet: string; hour: string; breaches: number; orders: number }>;
+  outletLoadComparison: Array<{ outlet: string; activeOrders: number; loadScore: number }>;
+  slowestFulfillmentOutlet?: { outlet: string; averageMinutes: number } | null;
+  busiestTimeWindow?: { hour: string; orders: number } | null;
+  bottleneckAlerts: Array<{ label: string; severity: 'warning' | 'critical'; detail: string }>;
+  cancellationSpikes: Array<{ hour: string; cancellations: number; cancellationRate: number }>;
+}
+
+export interface PayoutReconciliationSummary {
+  generatedAt: string;
+  totals: {
+    gross: number;
+    expected: number;
+    actual: number;
+    variance: number;
+    pending: number;
+    variances: number;
+  };
+  rows: Array<{
+    id: string;
+    publicId: string;
+    outletName?: string | null;
+    channel: string;
+    grossAmount: number;
+    expectedPayout: number;
+    actualPayout?: number | null;
+    varianceAmount: number;
+    status: string;
+    settlementDueAt: string;
+    settledAt?: string | null;
+  }>;
+}
+
+export interface WebhookEventLog {
+  id: string;
+  provider: string;
+  eventType: string;
+  externalId: string;
+  status: string;
+  signatureValid: boolean;
+  retryCount: number;
+  replayCount: number;
+  replayHistory: Array<{ at: string; action: string; status: string; detail?: string }>;
+  lastRetryAt?: string | null;
+  error?: string | null;
+  processedAt?: string | null;
+  createdAt: string;
+}
+
+export interface QueueActivityEntry {
+  id: string;
+  queue: string;
+  jobName: string;
+  jobId?: string | null;
+  status: string;
+  detail: string;
+  createdAt: string;
 }
 
 export interface InventoryItem {
@@ -244,6 +347,12 @@ export interface OperationsNotification {
   detail: string;
   createdAt: string;
   tone: 'success' | 'warning' | 'critical' | 'neutral';
+  severity?: 'info' | 'warning' | 'error' | 'critical';
+  read?: boolean;
+  dismissed?: boolean;
+  groupCount?: number;
+  actionLabel?: string;
+  actionUrl?: string;
 }
 
 export interface OperationalActivity {

@@ -2,6 +2,7 @@
 
 import type {
   AnalyticsSummary,
+  AdvancedOperationalAnalytics,
   AuditLogResponse,
   Channel,
   DashboardIntegration,
@@ -10,7 +11,12 @@ import type {
   OperationalActivity,
   Order,
   OrderStatus,
-  PaginatedResponse
+  PaginatedResponse,
+  PayoutReconciliationSummary,
+  QueueActivityEntry,
+  QueueMetrics,
+  OperationalIntelligenceSummary,
+  WebhookEventLog
 } from '@kitchenflow/types';
 import { apiClient } from './api-client';
 
@@ -61,6 +67,54 @@ export const dashboardApi = {
     const response = await apiClient.get<OperationalActivity[]>('/analytics/activity');
     return response.data;
   },
+  async simulateAggregator(count = 3) {
+    const response = await apiClient.post<{ created: number; failed: number }>('/aggregator/simulate', { count });
+    return response.data;
+  },
+  async payoutReconciliation() {
+    const response = await apiClient.get<PayoutReconciliationSummary>('/payouts/reconciliation');
+    return response.data;
+  },
+  async reconcilePayouts() {
+    const response = await apiClient.post<{ scanned: number; created: number; updated: number }>('/payouts/reconcile');
+    return response.data;
+  },
+  async webhooks() {
+    const response = await apiClient.get<WebhookEventLog[]>('/webhooks');
+    return response.data;
+  },
+  async queueActivity() {
+    const response = await apiClient.get<QueueActivityEntry[]>('/queues/activity');
+    return response.data;
+  },
+  async queueMetrics() {
+    const response = await apiClient.get<QueueMetrics>('/queues/metrics');
+    return response.data;
+  },
+  async enqueueTestFailure() {
+    const response = await apiClient.post('/queues/test-failure');
+    return response.data;
+  },
+  async controlCenter() {
+    const response = await apiClient.get<OperationalIntelligenceSummary>('/analytics/control-center');
+    return response.data;
+  },
+  async operationalIntelligence() {
+    const response = await apiClient.get<AdvancedOperationalAnalytics>('/analytics/operational-intelligence');
+    return response.data;
+  },
+  async retryWebhook(id: string) {
+    const response = await apiClient.post(`/webhooks/${id}/retry`);
+    return response.data;
+  },
+  async replayWebhook(id: string) {
+    const response = await apiClient.post(`/webhooks/${id}/replay`);
+    return response.data;
+  },
+  async runSlaScan() {
+    const response = await apiClient.post('/queues/sla-scan');
+    return response.data;
+  },
   async audit(query: { page?: number; limit?: number; query?: string; action?: string; outletId?: string; entityType?: string } = {}) {
     const response = await apiClient.get<AuditLogResponse>('/audit', { params: cleanParams(query) });
     return response.data;
@@ -93,5 +147,13 @@ export const dashboardApi = {
       available: item.available,
       variants: item.variants
     }));
+  },
+  async updateMenuAvailability(ids: string[], available: boolean) {
+    const response = await apiClient.patch('/menus/availability', { ids, available });
+    return response.data;
+  },
+  async syncMenus() {
+    const response = await apiClient.post('/menus/sync');
+    return response.data;
   }
 };

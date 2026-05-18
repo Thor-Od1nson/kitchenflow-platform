@@ -14,14 +14,28 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { Activity, AlertCircle, ArrowUpRight, Bell, Clock, Eye, Loader2, Minus, PackageCheck, Plus, ShoppingCart, Timer } from 'lucide-react';
+import { Activity, AlertCircle, ArrowUpRight, BarChart3, Bell, Clock, Eye, Loader2, Minus, PackageCheck, Plus, ShoppingCart, Timer } from 'lucide-react';
 import { Badge, Button, Card, Input, MetricCard, ModalFrame, SearchInput, Skeleton } from '@kitchenflow/ui';
 import type { Channel, InventoryItem, MenuItem, OperationalActivity, OperationsNotification, Order, OrderStatus, PaginatedResponse } from '@kitchenflow/types';
 import { formatMoney, percentage, statusCopy, statusTone } from '@kitchenflow/utils';
 import { useAuth } from '@/components/auth/auth-provider';
 import { dashboardApi, type CreateOrderInput } from '@/lib/dashboard-api';
 import { getApiErrorMessage } from '@/lib/api-client';
-import { useActivity, useAnalyticsSummary, useAudit, useIntegrations, useInventory, useMenus, useOrders } from '@/hooks/use-dashboard-data';
+import {
+  useActivity,
+  useAnalyticsSummary,
+  useAudit,
+  useControlCenter,
+  useIntegrations,
+  useInventory,
+  useMenus,
+  useOrders,
+  useOperationalIntelligence,
+  usePayoutReconciliation,
+  useQueueActivity,
+  useQueueMetrics,
+  useWebhooks
+} from '@/hooks/use-dashboard-data';
 import { useOpsStore } from '@/store/ops-store';
 
 const statusFilters: Array<OrderStatus | 'all'> = ['all', 'pending', 'accepted', 'preparing', 'dispatched', 'delivered', 'cancelled'];
@@ -43,7 +57,7 @@ export function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Command center" title="Live restaurant commerce operations" action="Export report" />
+      <PageHeader eyebrow="Command center" title="Live restaurant commerce operations" action="Export report" disabledReason="Coming soon" />
       <AsyncState loading={summary.isLoading} error={summary.isError}>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {summary.data?.kpis.map((kpi, index) => (
@@ -66,6 +80,144 @@ export function OverviewPage() {
         <InventoryRiskPanel />
         <OutletPanel />
       </div>
+    </div>
+  );
+}
+
+export function ControlCenterPage() {
+  const control = useControlCenter();
+  const queueMetrics = useQueueMetrics();
+  const intelligence = useOperationalIntelligence();
+  const orders = useOrders({ page: 1, limit: 8, status: 'all' });
+  const socketStatus = useOpsStore((state) => state.socketStatus);
+  const lastRealtimeAt = useOpsStore((state) => state.lastRealtimeAt);
+  const triggerFailure = useMutation({
+    mutationFn: dashboardApi.enqueueTestFailure,
+    onSuccess: () => {
+      void queueMetrics.refetch();
+    }
+  });
+
+  const stale = !lastRealtimeAt || Date.now() - Date.parse(lastRealtimeAt) > 30_000;
+  return (
+    <div className="space-y-6">
+      <PageHeader eyebrow="Global command center" title="Operational intelligence and reliability" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Active orders" value={String(control.data?.activeOrders ?? 0)} detail="Live workflow load">
+          <ShoppingCart className="size-5 text-royal" />
+        </MetricCard>
+        <MetricCard label="SLA breaches" value={String(control.data?.slaBreachCount ?? 0)} detail={`${control.data?.delayedDispatchCount ?? 0} delayed dispatches`}>
+          <Timer className="size-5 text-royal" />
+        </MetricCard>
+        <MetricCard label="Queue backlog" value={String(queueMetrics.data?.counts.backlog ?? 0)} detail={`${queueMetrics.data?.counts.failed ?? 0} failed jobs`}>
+          <Activity className="size-5 text-royal" />
+        </MetricCard>
+        <MetricCard label="Realtime" value={socketStatus} detail={stale ? 'Fallback polling active' : `Last event ${lastRealtimeAt ? formatDateTime(lastRealtimeAt) : 'none'}`}>
+          <Bell className="size-5 text-royal" />
+        </MetricCard>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[1fr_.9fr]">
+        <Card className="p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold">Queue monitoring</h2>
+            <Button size="sm" variant="secondary" onClick={() => triggerFailure.mutate()} disabled={triggerFailure.isPending}>
+              {triggerFailure.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+              Test failed job
+            </Button>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {[
+              ['Active', queueMetrics.data?.counts.active ?? 0],
+              ['Delayed', queueMetrics.data?.counts.delayed ?? 0],
+              ['Completed', queueMetrics.data?.counts.completed ?? 0],
+              ['Failed', queueMetrics.data?.counts.failed ?? 0],
+              ['Retries', queueMetrics.data?.retryCount ?? 0],
+              ['Avg ms', queueMetrics.data?.averageProcessingMs ?? 0]
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl border border-line p-3">
+                <p className="text-xs font-bold uppercase text-muted">{label}</p>
+                <p className="mt-1 text-2xl font-black">{value}</p>
+              </div>
+            ))}
+          </div>
+          <p className={`mt-4 text-sm font-semibold ${queueMetrics.data?.workerOnline ? 'text-emerald-600' : 'text-rose-600'}`}>
+            Worker {queueMetrics.data?.workerOnline ? 'online' : 'offline'} · heartbeat {queueMetrics.data?.workerHeartbeatAt ? formatDateTime(queueMetrics.data.workerHeartbeatAt) : 'none'}
+          </p>
+        </Card>
+        <Card className="p-5">
+          <h2 className="text-lg font-bold">System health</h2>
+          <div className="mt-4 space-y-3">
+            <AsyncState loading={control.isLoading} error={control.isError} empty={!control.data?.systemHealth.length}>
+              {control.data?.systemHealth.map((item) => (
+                <div key={item.label} className="flex items-center justify-between rounded-lg border border-line p-3 text-sm">
+                  <div>
+                    <p className="font-bold">{item.label}</p>
+                    <p className="text-muted">{item.detail}</p>
+                  </div>
+                  <Badge className={item.status === 'critical' ? 'bg-rose-50 text-rose-700 ring-rose-200' : item.status === 'warning' ? 'bg-amber-50 text-amber-700 ring-amber-200' : 'bg-emerald-50 text-emerald-700 ring-emerald-200'}>{item.status}</Badge>
+                </div>
+              ))}
+            </AsyncState>
+          </div>
+        </Card>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+        <Card className="p-5">
+          <h2 className="text-lg font-bold">Outlet operational status</h2>
+          <div className="mt-4 divide-y divide-line rounded-xl border border-line">
+            <AsyncState loading={control.isLoading} error={control.isError} empty={!control.data?.outletStatus.length}>
+              {control.data?.outletStatus.map((outlet) => (
+                <div key={outlet.outletId} className="grid gap-2 p-3 text-sm md:grid-cols-[1fr_.5fr_.5fr_.5fr]">
+                  <p className="font-bold">{outlet.outlet}</p>
+                  <p>{outlet.activeOrders} active</p>
+                  <p>{outlet.slaBreaches} breaches</p>
+                  <Badge className="bg-panel-muted text-muted ring-line">{outlet.status}</Badge>
+                </div>
+              ))}
+            </AsyncState>
+          </div>
+        </Card>
+        <Card className="p-5">
+          <h2 className="text-lg font-bold">Active order stream</h2>
+          <div className="mt-4 space-y-3">
+            <AsyncState loading={orders.isLoading} error={orders.isError} empty={!orders.data?.items.length}>
+              {orders.data?.items.map((order) => (
+                <div key={order.id} className="flex items-center justify-between rounded-lg border border-line p-3 text-sm">
+                  <div>
+                    <p className="font-bold">{order.publicId}</p>
+                    <p className="text-muted">{order.outletName} · {order.channel.replace('_', ' ')}</p>
+                  </div>
+                  <Badge className={statusTone[order.status]}>{statusCopy[order.status]}</Badge>
+                </div>
+              ))}
+            </AsyncState>
+          </div>
+        </Card>
+      </div>
+      <Card className="p-5">
+        <h2 className="text-lg font-bold">Operational analytics</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <MetricCard label="Slowest outlet" value={intelligence.data?.slowestFulfillmentOutlet?.outlet ?? 'n/a'} detail={`${intelligence.data?.slowestFulfillmentOutlet?.averageMinutes ?? 0}m average`}>
+            <Clock className="size-5 text-royal" />
+          </MetricCard>
+          <MetricCard label="Busiest window" value={intelligence.data?.busiestTimeWindow?.hour ?? 'n/a'} detail={`${intelligence.data?.busiestTimeWindow?.orders ?? 0} orders`}>
+            <BarChart3 className="size-5 text-royal" />
+          </MetricCard>
+          <MetricCard label="Bottleneck alerts" value={String(intelligence.data?.bottleneckAlerts.length ?? 0)} detail={`${intelligence.data?.cancellationSpikes.length ?? 0} cancellation spikes`}>
+            <AlertCircle className="size-5 text-royal" />
+          </MetricCard>
+        </div>
+        <div className="mt-4 grid gap-2 md:grid-cols-4">
+          {intelligence.data?.outletLoadComparison.map((row) => (
+            <div key={row.outlet} className="rounded-lg border border-line p-3">
+              <p className="text-sm font-bold">{row.outlet}</p>
+              <div className="mt-2 h-2 rounded-full bg-panel-muted">
+                <div className="h-full rounded-full bg-royal" style={{ width: `${Math.min(100, row.loadScore)}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }
@@ -153,6 +305,11 @@ export function OrdersPage() {
     () => (user?.restaurant?.outlets?.length ? user.restaurant.outlets : outletsFromOrders(visibleOrders)),
     [user?.restaurant?.outlets, visibleOrders]
   );
+  useEffect(() => {
+    if (!selectedOrder) return;
+    const updated = visibleOrders.find((order) => order.id === selectedOrder.id);
+    if (updated && updated.updatedAt !== selectedOrder.updatedAt) setSelectedOrder(updated);
+  }, [selectedOrder, visibleOrders]);
 
   return (
     <div className="space-y-6">
@@ -287,6 +444,8 @@ export function OrdersPage() {
         <ManualOrderModal
           outlets={manualOrderOutlets}
           menus={menus.data ?? []}
+          menusLoading={menus.isLoading}
+          menusError={menus.isError}
           loading={createOrder.isPending}
           onClose={() => setCreatingOrder(false)}
           onCreate={(input) => createOrder.mutate(input)}
@@ -454,24 +613,33 @@ function OrderDetailModal({
 function ManualOrderModal({
   outlets,
   menus,
+  menusLoading,
+  menusError,
   loading,
   onCreate,
   onClose
 }: {
   outlets: Array<{ id: string; name: string; city: string }>;
   menus: MenuItem[];
+  menusLoading: boolean;
+  menusError: boolean;
   loading: boolean;
   onCreate: (input: CreateOrderInput) => void;
   onClose: () => void;
 }) {
   const defaultOutletId = outlets[0]?.id ?? '';
-  const defaultMenuId = menus[0]?.id ?? '';
   const [outletId, setOutletId] = useState(defaultOutletId);
   const [channel, setChannel] = useState<Channel>('direct');
   const [customerName, setCustomerName] = useState('');
   const [etaMinutes, setEtaMinutes] = useState(25);
   const [clientMutationId] = useState(() => `manual-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  const [lines, setLines] = useState<Array<{ menuItemId: string; quantity: number }>>([{ menuItemId: defaultMenuId, quantity: 1 }]);
+  const selectedOutlet = outlets.find((outlet) => outlet.id === outletId);
+  const availableMenus = useMemo(
+    () => menus.filter((item) => item.available && (!selectedOutlet || !item.outletScope.length || item.outletScope.includes(selectedOutlet.name))),
+    [menus, selectedOutlet]
+  );
+  const defaultMenuId = availableMenus[0]?.id ?? '';
+  const [lines, setLines] = useState<Array<{ menuItemId: string; quantity: number }>>([{ menuItemId: '', quantity: 1 }]);
   useEffect(() => {
     if (!outletId && defaultOutletId) setOutletId(defaultOutletId);
     if (defaultMenuId) {
@@ -479,14 +647,20 @@ function ManualOrderModal({
     }
   }, [defaultMenuId, defaultOutletId, outletId]);
 
+  useEffect(() => {
+    setLines((current) =>
+      current.map((line) => (availableMenus.some((item) => item.id === line.menuItemId) ? line : { ...line, menuItemId: defaultMenuId }))
+    );
+  }, [defaultMenuId, outletId, availableMenus]);
+
   const total = lines.reduce((sum, line) => {
-    const item = menus.find((menu) => menu.id === line.menuItemId);
+    const item = availableMenus.find((menu) => menu.id === line.menuItemId);
     return sum + (item?.price.amount ?? 0) * line.quantity;
   }, 0);
 
   function submit() {
-    const items = lines.filter((line) => line.menuItemId && line.quantity > 0);
-    if (!outletId || !customerName.trim() || !items.length) return;
+    const items = lines.filter((line) => availableMenus.some((item) => item.id === line.menuItemId) && line.quantity > 0);
+    if (!outletId || !customerName.trim() || !items.length || total <= 0) return;
     onCreate({ outletId, channel, customerName: customerName.trim(), etaMinutes, items, clientMutationId });
   }
 
@@ -522,11 +696,18 @@ function ManualOrderModal({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-black">Items</h3>
-            <Button size="sm" variant="secondary" onClick={() => setLines((current) => [...current, { menuItemId: menus[0]?.id ?? '', quantity: 1 }])}>
+            <Button size="sm" variant="secondary" disabled={!availableMenus.length} onClick={() => setLines((current) => [...current, { menuItemId: defaultMenuId, quantity: 1 }])}>
               <Plus className="size-4" />
               Add
             </Button>
           </div>
+          {menusLoading ? <LoadingRows /> : null}
+          {menusError ? <ErrorState /> : null}
+          {!menusLoading && !menusError && !availableMenus.length ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-700">
+              No available menu items for this outlet.
+            </div>
+          ) : null}
           {lines.map((line, index) => (
             <div key={`${line.menuItemId}-${index}`} className="grid gap-2 sm:grid-cols-[1fr_88px_40px]">
               <select
@@ -536,7 +717,7 @@ function ManualOrderModal({
                   setLines((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, menuItemId: event.target.value } : item)))
                 }
               >
-                {menus.map((item) => (
+                {availableMenus.map((item) => (
                   <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
               </select>
@@ -560,7 +741,7 @@ function ManualOrderModal({
         </div>
         <div className="flex justify-end gap-2 border-t border-line pt-4">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit} disabled={loading || !customerName.trim() || !lines.some((line) => line.menuItemId)}>
+          <Button onClick={submit} disabled={loading || menusLoading || menusError || !customerName.trim() || !lines.some((line) => line.menuItemId) || total <= 0}>
             {loading ? <Loader2 className="size-4 animate-spin" /> : <ShoppingCart className="size-4" />}
             Create order
           </Button>
@@ -593,9 +774,32 @@ export function MenusPage() {
   const { user } = useAuth();
   const canManageMenus = Boolean(user && ['owner', 'manager'].includes(user.role));
   const menus = useMenus();
+  const queryClient = useQueryClient();
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const updateAvailability = useMutation({
+    mutationFn: ({ id, available }: { id: string; available: boolean }) => dashboardApi.updateMenuAvailability([id], available),
+    onSuccess: () => {
+      setStatusMessage(null);
+      void queryClient.invalidateQueries({ queryKey: ['menus'] });
+    },
+    onError: (error) => setStatusMessage(getMutationErrorMessage(error))
+  });
+  const syncMenus = useMutation({
+    mutationFn: dashboardApi.syncMenus,
+    onSuccess: () => setStatusMessage('Menu sync queued.'),
+    onError: (error) => setStatusMessage(getMutationErrorMessage(error))
+  });
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Menu management" title="Pricing, availability, variants, and outlet scopes" action={canManageMenus ? 'Bulk sync' : undefined} />
+      <PageHeader
+        eyebrow="Menu management"
+        title="Pricing, availability, variants, and outlet scopes"
+        action={canManageMenus ? 'Bulk sync' : undefined}
+        onAction={canManageMenus ? () => syncMenus.mutate() : undefined}
+      />
+      {statusMessage ? (
+        <div className="rounded-xl border border-line bg-panel-muted p-3 text-sm font-semibold text-muted">{statusMessage}</div>
+      ) : null}
       <AsyncState loading={menus.isLoading} error={menus.isError} empty={!menus.data?.length}>
         <div className="grid gap-4 lg:grid-cols-3">
           {menus.data?.map((item) => (
@@ -606,7 +810,12 @@ export function MenusPage() {
                   <h3 className="mt-2 text-lg font-bold">{item.name}</h3>
                 </div>
                 {canManageMenus ? (
-                  <button className={`h-6 w-11 rounded-full p-1 transition ${item.available ? 'bg-emerald-500' : 'bg-slate-300'}`} aria-label="Toggle availability">
+                  <button
+                    className={`h-6 w-11 rounded-full p-1 transition disabled:opacity-50 ${item.available ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                    aria-label="Toggle availability"
+                    disabled={updateAvailability.isPending}
+                    onClick={() => updateAvailability.mutate({ id: item.id, available: !item.available })}
+                  >
                     <span className={`block size-4 rounded-full bg-white transition ${item.available ? 'translate-x-5' : ''}`} />
                   </button>
                 ) : (
@@ -633,13 +842,17 @@ export function MenusPage() {
 export function AnalyticsPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Analytics" title="Revenue, conversion, heatmaps, and outlet performance" action="Schedule digest" />
+      <PageHeader eyebrow="Analytics" title="Revenue, conversion, heatmaps, and outlet performance" action="Schedule digest" disabledReason="Coming soon" />
       <KitchenPerformancePanel />
       <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
         <RevenuePanel />
         <OutletPanel />
       </div>
       <ChannelPanel />
+      <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+        <PayoutReconciliationPanel />
+        <OperationalAnalyticsPanel />
+      </div>
     </div>
   );
 }
@@ -647,9 +860,29 @@ export function AnalyticsPage() {
 export function IntegrationsPage() {
   const { user } = useAuth();
   const integrations = useIntegrations();
+  const webhooks = useWebhooks();
+  const queueClient = useQueryClient();
+  const simulate = useMutation({
+    mutationFn: () => dashboardApi.simulateAggregator(4),
+    onSuccess: () => {
+      void queueClient.invalidateQueries({ queryKey: ['orders'] });
+      void queueClient.invalidateQueries({ queryKey: ['webhooks'] });
+      void queueClient.invalidateQueries({ queryKey: ['queue-activity'] });
+    }
+  });
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Integration marketplace" title="Aggregator, POS, accounting, and webhook health" action={user?.role === 'owner' ? 'Add connector' : undefined} />
+      <PageHeader
+        eyebrow="Integration marketplace"
+        title="Aggregator, POS, accounting, and webhook health"
+        action={user && ['owner', 'manager'].includes(user.role) ? 'Simulate orders' : undefined}
+        onAction={user && ['owner', 'manager'].includes(user.role) ? () => simulate.mutate() : undefined}
+      />
+      {simulate.data ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
+          Created {simulate.data.created} simulated orders. Failed retries: {simulate.data.failed}.
+        </div>
+      ) : null}
       <AsyncState loading={integrations.isLoading} error={integrations.isError} empty={!integrations.data?.length}>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {integrations.data?.map((integration) => (
@@ -671,6 +904,7 @@ export function IntegrationsPage() {
           ))}
         </div>
       </AsyncState>
+      <WebhookEventPanel loading={webhooks.isLoading} error={webhooks.isError} rows={webhooks.data ?? []} />
     </div>
   );
 }
@@ -696,7 +930,7 @@ export function InventoryPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Inventory" title="Stock intelligence and outlet replenishment" action={canAdjustInventory ? 'Sync stock' : undefined} />
+      <PageHeader eyebrow="Inventory" title="Stock intelligence and outlet replenishment" action={canAdjustInventory ? 'Sync stock' : undefined} disabledReason={canAdjustInventory ? 'Coming soon' : undefined} />
       <Card className="p-4">
         <div className="flex flex-wrap gap-2">
           {outlets.map((outlet) => (
@@ -768,7 +1002,7 @@ export function InventoryPage() {
 export function SimpleOpsPage({ title, eyebrow }: { title: string; eyebrow: string }) {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow={eyebrow} title={title} action="Configure" />
+      <PageHeader eyebrow={eyebrow} title={title} action="Configure" disabledReason="Coming soon" />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {['Operational policy', 'Automation rules', 'Audit timeline', 'Approval queue', 'SLA monitors', 'Team ownership'].map((item) => (
           <Card key={item} className="p-5">
@@ -787,15 +1021,22 @@ export function SimpleOpsPage({ title, eyebrow }: { title: string; eyebrow: stri
 export function NotificationsPage() {
   const notifications = useOpsStore((state) => state.notifications);
   const clearNotifications = useOpsStore((state) => state.clearNotifications);
+  const markAllRead = useOpsStore((state) => state.markAllRead);
+  const clearDismissed = useOpsStore((state) => state.clearDismissed);
   const activity = useActivity();
+  const queueActivity = useQueueActivity();
   const activityNotifications = (activity.data ?? []).map(activityToNotification);
-  const rows = [...notifications, ...activityNotifications].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const rows = [...notifications].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Notifications" title="Operational alerts and incident routing" action="Clear" onAction={clearNotifications} />
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="secondary" onClick={markAllRead}>Mark all as read</Button>
+        <Button size="sm" variant="secondary" onClick={clearDismissed}>Clear dismissed</Button>
+      </div>
       <Card className="overflow-hidden">
-        <AsyncTableState loading={activity.isLoading} error={activity.isError} empty={!rows.length}>
+        <AsyncTableState loading={false} error={false} empty={!rows.length}>
           <div className="divide-y divide-line">
             {rows.map((notification) => (
               <NotificationRow key={notification.id} notification={notification} />
@@ -803,6 +1044,19 @@ export function NotificationsPage() {
           </div>
         </AsyncTableState>
       </Card>
+      <Card className="overflow-hidden">
+        <div className="border-b border-line p-4">
+          <h2 className="text-lg font-bold">Durable activity history</h2>
+        </div>
+        <AsyncTableState loading={activity.isLoading} error={activity.isError} empty={!activityNotifications.length}>
+          <div className="divide-y divide-line">
+            {activityNotifications.map((notification) => (
+              <NotificationRow key={notification.id} notification={notification} />
+            ))}
+          </div>
+        </AsyncTableState>
+      </Card>
+      <QueueActivityPanel loading={queueActivity.isLoading} error={queueActivity.isError} rows={queueActivity.data ?? []} />
     </div>
   );
 }
@@ -897,14 +1151,30 @@ function NotificationRow({ notification }: { notification: OperationsNotificatio
   );
 }
 
-function PageHeader({ eyebrow, title, action, onAction }: { eyebrow: string; title: string; action?: string; onAction?: () => void }) {
+function PageHeader({
+  eyebrow,
+  title,
+  action,
+  onAction,
+  disabledReason
+}: {
+  eyebrow: string;
+  title: string;
+  action?: string;
+  onAction?: () => void;
+  disabledReason?: string;
+}) {
   return (
     <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
         <p className="text-sm font-bold uppercase tracking-wide text-royal">{eyebrow}</p>
         <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl">{title}</h1>
       </div>
-      {action ? <Button onClick={onAction}>{action}</Button> : null}
+      {action ? (
+        <Button onClick={onAction} disabled={Boolean(disabledReason) || !onAction} title={disabledReason}>
+          {action}
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -1073,6 +1343,171 @@ function ChannelPanel() {
               <p className="text-sm font-bold capitalize">{channel.channel.replace('_', ' ')}</p>
               <p className="mt-2 text-2xl font-black">{formatMoney(channel.revenue)}</p>
               <p className="text-sm text-muted">{channel.orders} orders</p>
+            </div>
+          ))}
+        </AsyncState>
+      </div>
+    </Card>
+  );
+}
+
+function OperationalAnalyticsPanel() {
+  const summary = useAnalyticsSummary();
+  const data = summary.data;
+  return (
+    <Card className="p-5">
+      <h2 className="text-lg font-bold">Operational analytics</h2>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <MetricCard label="SLA breach rate" value={`${data?.slaMetrics.breachRate ?? 0}%`} detail={`${data?.slaMetrics.breachesToday ?? 0} breaches today`}>
+          <Timer className="size-5 text-royal" />
+        </MetricCard>
+        <MetricCard label="Queue latency" value={`${data?.slaMetrics.averageLatencyMinutes ?? 0}m`} detail="Average active order age">
+          <Clock className="size-5 text-royal" />
+        </MetricCard>
+        <MetricCard label="Consumption SKUs" value={String(data?.inventoryConsumptionTrends.length ?? 0)} detail="Inventory drawdown tracked">
+          <PackageCheck className="size-5 text-royal" />
+        </MetricCard>
+      </div>
+      <div className="mt-5 space-y-3">
+        <AsyncState loading={summary.isLoading} error={summary.isError} empty={!data?.channelProfitability.length}>
+          {data?.channelProfitability.map((row) => (
+            <div key={row.channel} className="flex items-center justify-between rounded-lg border border-line p-3 text-sm">
+              <span className="font-bold capitalize">{String(row.channel).replace('_', ' ')}</span>
+              <span className="text-muted">{formatMoney(row.expectedPayout)} expected payout</span>
+              <Badge className="bg-panel-muted text-muted ring-line">{row.marginPercent}% fees</Badge>
+            </div>
+          ))}
+        </AsyncState>
+      </div>
+    </Card>
+  );
+}
+
+function PayoutReconciliationPanel() {
+  const queryClient = useQueryClient();
+  const payouts = usePayoutReconciliation();
+  const reconcile = useMutation({
+    mutationFn: dashboardApi.reconcilePayouts,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['payout-reconciliation'] });
+      void queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
+    }
+  });
+
+  return (
+    <Card className="p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">Payout reconciliation</h2>
+        <Button size="sm" variant="secondary" onClick={() => reconcile.mutate()} disabled={reconcile.isPending}>
+          {reconcile.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+          Reconcile
+        </Button>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <MetricCard label="Expected" value={formatMoney(payouts.data?.totals.expected ?? 0)} detail={`${payouts.data?.totals.pending ?? 0} pending`}>
+          <Activity className="size-5 text-royal" />
+        </MetricCard>
+        <MetricCard label="Actual" value={formatMoney(payouts.data?.totals.actual ?? 0)} detail="Settled payouts">
+          <PackageCheck className="size-5 text-royal" />
+        </MetricCard>
+        <MetricCard label="Variance" value={formatMoney(payouts.data?.totals.variance ?? 0)} detail={`${payouts.data?.totals.variances ?? 0} exceptions`}>
+          <AlertCircle className="size-5 text-royal" />
+        </MetricCard>
+      </div>
+      <div className="mt-5 divide-y divide-line rounded-xl border border-line">
+        <AsyncState loading={payouts.isLoading} error={payouts.isError} empty={!payouts.data?.rows.length}>
+          {payouts.data?.rows.slice(0, 6).map((row) => (
+            <div key={row.id} className="grid gap-2 p-3 text-sm md:grid-cols-[1fr_.8fr_.8fr]">
+              <div>
+                <p className="font-bold">{row.publicId}</p>
+                <p className="text-xs text-muted">{row.outletName ?? 'Outlet'} - {row.channel.replace('_', ' ')}</p>
+              </div>
+              <p className="font-semibold">{formatMoney(row.expectedPayout)}</p>
+              <Badge className={row.status === 'variance' ? 'bg-rose-50 text-rose-700 ring-rose-200' : 'bg-panel-muted text-muted ring-line'}>
+                {row.status}
+              </Badge>
+            </div>
+          ))}
+        </AsyncState>
+      </div>
+    </Card>
+  );
+}
+
+function WebhookEventPanel({ rows, loading, error }: { rows: Array<{ id: string; provider: string; eventType: string; status: string; createdAt: string; retryCount?: number; replayCount?: number; error?: string | null }>; loading: boolean; error: boolean }) {
+  const queryClient = useQueryClient();
+  const retry = useMutation({
+    mutationFn: dashboardApi.retryWebhook,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['webhooks'] });
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
+    }
+  });
+  const replay = useMutation({
+    mutationFn: dashboardApi.replayWebhook,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['webhooks'] });
+      void queryClient.invalidateQueries({ queryKey: ['orders'] });
+    }
+  });
+  const addNotification = useOpsStore((state) => state.addNotification);
+  useEffect(() => {
+    rows
+      .filter((row) => row.status === 'failed' || row.status === 'rejected')
+      .slice(0, 3)
+      .forEach((row) =>
+        addNotification({
+          id: `webhook_recovery:${row.id}`,
+          type: 'activity',
+          title: 'Webhook recovery needed',
+          detail: `${row.provider} ${row.eventType} is ${row.status}`,
+          tone: row.status === 'rejected' ? 'critical' : 'warning',
+          severity: row.status === 'rejected' ? 'critical' : 'error',
+          actionLabel: 'Review webhook',
+          actionUrl: '/dashboard/integrations'
+        })
+      );
+  }, [addNotification, rows]);
+  return (
+    <Card className="p-5">
+      <h2 className="text-lg font-bold">Webhook event logs</h2>
+      <div className="mt-4 divide-y divide-line rounded-xl border border-line">
+        <AsyncState loading={loading} error={error} empty={!rows.length}>
+          {rows.slice(0, 8).map((row) => (
+            <div key={row.id} className="grid gap-2 p-3 text-sm md:grid-cols-[.8fr_1fr_.7fr_.8fr_.9fr]">
+              <p className="font-bold capitalize">{row.provider.replace('_', ' ')}</p>
+              <p className="text-muted">{row.eventType}</p>
+              <Badge className={row.status === 'failed' || row.status === 'rejected' ? 'bg-rose-50 text-rose-700 ring-rose-200' : 'bg-panel-muted text-muted ring-line'}>
+                {row.status}
+              </Badge>
+              <p className="text-muted">R{row.retryCount ?? 0} / P{row.replayCount ?? 0}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="secondary" disabled={retry.isPending || row.status === 'processed'} onClick={() => retry.mutate(row.id)}>Retry</Button>
+                <Button size="sm" variant="ghost" disabled={replay.isPending} onClick={() => replay.mutate(row.id)}>Replay</Button>
+              </div>
+              <p className="text-muted">{formatDateTime(row.createdAt)}</p>
+            </div>
+          ))}
+        </AsyncState>
+      </div>
+    </Card>
+  );
+}
+
+function QueueActivityPanel({ rows, loading, error }: { rows: Array<{ id: string; queue: string; jobName: string; status: string; detail: string; createdAt: string }>; loading: boolean; error: boolean }) {
+  return (
+    <Card className="p-5">
+      <h2 className="text-lg font-bold">Queue and job activity</h2>
+      <div className="mt-4 divide-y divide-line rounded-xl border border-line">
+        <AsyncState loading={loading} error={error} empty={!rows.length}>
+          {rows.slice(0, 10).map((row) => (
+            <div key={row.id} className="grid gap-2 p-3 text-sm md:grid-cols-[.8fr_.8fr_1.3fr_.7fr]">
+              <p className="font-bold">{row.jobName}</p>
+              <Badge className={row.status === 'failed' ? 'bg-rose-50 text-rose-700 ring-rose-200' : 'bg-panel-muted text-muted ring-line'}>
+                {row.status}
+              </Badge>
+              <p className="text-muted">{row.detail}</p>
+              <p className="text-muted">{formatDateTime(row.createdAt)}</p>
             </div>
           ))}
         </AsyncState>

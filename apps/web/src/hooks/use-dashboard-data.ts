@@ -24,6 +24,50 @@ export function useActivity() {
   });
 }
 
+export function usePayoutReconciliation() {
+  return useQuery({
+    queryKey: ['payout-reconciliation'],
+    queryFn: dashboardApi.payoutReconciliation
+  });
+}
+
+export function useWebhooks() {
+  return useQuery({
+    queryKey: ['webhooks'],
+    queryFn: dashboardApi.webhooks
+  });
+}
+
+export function useQueueActivity() {
+  return useQuery({
+    queryKey: ['queue-activity'],
+    queryFn: dashboardApi.queueActivity
+  });
+}
+
+export function useQueueMetrics() {
+  return useQuery({
+    queryKey: ['queue-metrics'],
+    queryFn: dashboardApi.queueMetrics,
+    refetchInterval: 10_000
+  });
+}
+
+export function useControlCenter() {
+  return useQuery({
+    queryKey: ['control-center'],
+    queryFn: dashboardApi.controlCenter,
+    refetchInterval: 10_000
+  });
+}
+
+export function useOperationalIntelligence() {
+  return useQuery({
+    queryKey: ['operational-intelligence'],
+    queryFn: dashboardApi.operationalIntelligence
+  });
+}
+
 export function useAudit(query: { page?: number; limit?: number; query?: string; action?: string; outletId?: string; entityType?: string }) {
   return useQuery({
     queryKey: ['audit', query],

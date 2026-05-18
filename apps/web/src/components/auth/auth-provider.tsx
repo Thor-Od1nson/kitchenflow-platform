@@ -1,10 +1,12 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { AuthResponse, AuthTokens, AuthUser } from '@kitchenflow/types';
 import { authApi } from '@/lib/api-client';
-import { clearStoredTokens, getStoredTokens, persistTokens } from '@/lib/auth-storage';
+import { clearStoredTokens, getStoredTokens, persistTokens, subscribeToAuthStorage } from '@/lib/auth-storage';
+import { canAccessRoute, getDefaultRouteByRole } from '@/lib/rbac-routes';
+import { useOpsStore } from '@/store/ops-store';
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -24,6 +26,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const addNotification = useOpsStore((state) => state.addNotification);
+  const hydratedOnce = useRef(false);
+  const lastUserRef = useRef<AuthUser | null>(null);
 
   const applySession = useCallback((session: AuthResponse) => {
     const nextTokens = {
@@ -33,12 +38,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     persistTokens(nextTokens);
     setTokens(nextTokens);
     setUser(session.user);
+    hydratedOnce.current = true;
+    lastUserRef.current = session.user;
   }, []);
 
   const clearSession = useCallback(() => {
     clearStoredTokens();
     setTokens(null);
     setUser(null);
+    lastUserRef.current = null;
   }, []);
 
   const refreshSession = useCallback(async () => {
@@ -49,27 +57,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return session;
   }, [applySession]);
 
+  const hydrateSession = useCallback(async () => {
+    const stored = getStoredTokens();
+    if (!stored) {
+      setTokens(null);
+      setUser(null);
+      lastUserRef.current = null;
+      hydratedOnce.current = true;
+      return null;
+    }
+
+    setTokens(stored);
+    try {
+      const currentUser = await authApi.me();
+      if (hydratedOnce.current && lastUserRef.current && (lastUserRef.current.id !== currentUser.id || lastUserRef.current.role !== currentUser.role)) {
+        addNotification({
+          id: `session_changed:${currentUser.id}:${currentUser.role}`,
+          type: 'activity',
+          title: 'Session changed',
+          detail: `This tab is now signed in as ${currentUser.fullName} (${currentUser.role}).`,
+          tone: 'neutral'
+        });
+      }
+      hydratedOnce.current = true;
+      lastUserRef.current = currentUser;
+      setUser(currentUser);
+      return currentUser;
+    } catch {
+      try {
+        const session = await refreshSession();
+        if (session?.user) {
+          hydratedOnce.current = true;
+          lastUserRef.current = session.user;
+        }
+        return session?.user ?? null;
+      } catch {
+        clearSession();
+        return null;
+      }
+    }
+  }, [addNotification, refreshSession]);
+
   useEffect(() => {
     let mounted = true;
 
     async function loadSession() {
-      const stored = getStoredTokens();
-      if (!stored) {
-        if (mounted) setIsLoading(false);
-        return;
-      }
-
-      setTokens(stored);
       try {
-        const currentUser = await authApi.me();
-        if (mounted) setUser(currentUser);
-      } catch {
-        try {
-          const session = await refreshSession();
-          if (mounted && session) setUser(session.user);
-        } catch {
-          clearSession();
-        }
+        await hydrateSession();
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -79,7 +113,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [clearSession, refreshSession]);
+  }, [hydrateSession]);
+
+  useEffect(() => {
+    let syncInFlight = false;
+    return subscribeToAuthStorage(() => {
+      if (syncInFlight) return;
+      syncInFlight = true;
+      window.setTimeout(() => {
+        void hydrateSession().finally(() => {
+          syncInFlight = false;
+        });
+      }, 50);
+    });
+  }, [hydrateSession]);
 
   useEffect(() => {
     function handleSessionExpired() {
@@ -95,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (email: string, password: string) => {
       const session = await authApi.login(email, password);
       applySession(session);
-      router.replace('/dashboard');
+      router.replace(getDefaultRouteByRole(session.user.role));
     },
     [applySession, router]
   );
@@ -115,7 +162,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && user && pathname === '/login') {
-      router.replace('/dashboard');
+      router.replace(getDefaultRouteByRole(user.role));
+    }
+  }, [isLoading, pathname, router, user]);
+
+  useEffect(() => {
+    if (!isLoading && user && pathname.startsWith('/dashboard') && !canAccessRoute(user.role, pathname)) {
+      router.replace(getDefaultRouteByRole(user.role));
     }
   }, [isLoading, pathname, router, user]);
 

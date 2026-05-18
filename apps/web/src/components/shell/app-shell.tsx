@@ -8,6 +8,7 @@ import {
   Bell,
   ClipboardList,
   Boxes,
+  Gauge,
   ChevronDown,
   Command,
   Home,
@@ -19,7 +20,8 @@ import {
   Settings,
   Store,
   Users,
-  Utensils
+  Utensils,
+  X
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@kitchenflow/ui';
@@ -30,6 +32,7 @@ import { useOpsStore } from '@/store/ops-store';
 
 const nav: Array<{ href: string; label: string; icon: typeof Home; roles: Role[] }> = [
   { href: '/dashboard', label: 'Overview', icon: Home, roles: ['owner', 'manager'] },
+  { href: '/dashboard/control-center', label: 'Control center', icon: Gauge, roles: ['owner'] },
   { href: '/dashboard/orders', label: 'Orders', icon: Command, roles: ['owner', 'manager', 'kitchen', 'support'] },
   { href: '/dashboard/menus', label: 'Menus', icon: MenuSquare, roles: ['owner', 'manager', 'support'] },
   { href: '/dashboard/inventory', label: 'Inventory', icon: Boxes, roles: ['owner', 'manager', 'support'] },
@@ -48,6 +51,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const notifications = useOpsStore((state) => state.notifications);
   const socketStatus = useOpsStore((state) => state.socketStatus);
   const dismissNotification = useOpsStore((state) => state.dismissNotification);
+  const cleanupExpiredNotifications = useOpsStore((state) => state.cleanupExpiredNotifications);
+  const hydrateNotifications = useOpsStore((state) => state.hydrateNotifications);
+  const markAllRead = useOpsStore((state) => state.markAllRead);
   const { user, logout } = useAuth();
 
   const visibleNav = nav.filter((item) => user && item.roles.includes(user.role));
@@ -59,13 +65,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [darkMode]);
 
   useEffect(() => {
-    const timers = notifications.slice(0, 4).map((notification) =>
-      window.setTimeout(() => dismissNotification(notification.id), 4_000)
-    );
+    cleanupExpiredNotifications();
+    const timers = notifications.slice(0, 4).map((notification) => {
+      const expiresIn = Math.max(250, Date.parse(notification.createdAt) + 4_000 - Date.now());
+      return window.setTimeout(() => dismissNotification(notification.id), expiresIn);
+    });
     return () => {
       timers.forEach(window.clearTimeout);
     };
-  }, [dismissNotification, notifications]);
+  }, [cleanupExpiredNotifications, dismissNotification, notifications, pathname]);
+
+  useEffect(() => {
+    hydrateNotifications();
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === 'kitchenflow.notifications') hydrateNotifications();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [hydrateNotifications]);
 
   return (
     <div className="min-h-screen bg-surface text-ink">
@@ -197,10 +214,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             animate={{ opacity: 1, x: 0, y: 0 }}
             exit={{ opacity: 0, x: 24, y: -8 }}
             transition={{ duration: 0.2 }}
-            className="rounded-2xl border border-line bg-panel p-4 text-sm shadow-soft"
+            className="pointer-events-auto rounded-xl border border-line bg-panel p-4 text-sm shadow-soft"
           >
-            <p className="font-bold">{notification.title}</p>
-            <p className="mt-1 text-xs text-muted">{notification.detail}</p>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-bold">{notification.title}</p>
+                <p className="mt-1 text-xs text-muted">
+                  {notification.detail}
+                  {notification.groupCount && notification.groupCount > 1 ? ` (${notification.groupCount}x)` : ''}
+                </p>
+                {notification.actionUrl && notification.actionLabel ? (
+                  <Link href={notification.actionUrl} className="mt-2 inline-flex text-xs font-bold text-royal" onClick={markAllRead}>
+                    {notification.actionLabel}
+                  </Link>
+                ) : null}
+              </div>
+              <button
+                className="grid size-7 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-panel-muted hover:text-ink"
+                onClick={() => dismissNotification(notification.id)}
+                aria-label="Dismiss notification"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
           </motion.div>
         ))}
         </AnimatePresence>

@@ -63,6 +63,9 @@ model Restaurant {
   orders       Order[]
   menuItems    MenuItem[]
   integrations Integration[]
+  webhookEvents WebhookEvent[]
+  payoutLedger PayoutLedger[]
+  jobActivities JobActivity[]
   events       AnalyticsEvent[]
   auditLogs    AuditLog[]
   createdAt    DateTime        @default(now())
@@ -128,6 +131,70 @@ model Order {
 
   @@index([restaurantId, status, createdAt])
   @@index([outletId, createdAt])
+}
+
+model WebhookEvent {
+  id             String   @id @default(cuid())
+  restaurantId   String
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  provider       String
+  eventType      String
+  externalId     String
+  idempotencyKey String
+  signatureValid Boolean
+  status         String
+  payload        Json
+  error          String?
+  retryCount     Int      @default(0)
+  replayCount    Int      @default(0)
+  replayOfId     String?
+  replayHistory  Json     @default("[]")
+  lastRetryAt    DateTime?
+  processedAt    DateTime?
+  createdAt      DateTime @default(now())
+
+  @@unique([restaurantId, provider, idempotencyKey])
+  @@index([restaurantId, provider, createdAt])
+  @@index([restaurantId, status, createdAt])
+}
+
+model PayoutLedger {
+  id              String   @id @default(cuid())
+  restaurantId    String
+  restaurant      Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orderId         String?
+  publicId        String
+  outletId        String?
+  outletName      String?
+  channel         String
+  grossAmount     Int
+  expectedPayout  Int
+  actualPayout    Int?
+  varianceAmount  Int
+  status          String
+  settlementDueAt DateTime
+  settledAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([restaurantId, publicId, channel])
+  @@index([restaurantId, status, settlementDueAt])
+}
+
+model JobActivity {
+  id           String   @id @default(cuid())
+  restaurantId String?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+  queue        String
+  jobName      String
+  jobId        String?
+  status       String
+  detail       String
+  payload      Json
+  createdAt    DateTime @default(now())
+
+  @@index([restaurantId, createdAt])
+  @@index([queue, status, createdAt])
 }
 
 model MenuItem {

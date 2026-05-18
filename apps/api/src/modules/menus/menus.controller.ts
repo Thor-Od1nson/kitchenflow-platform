@@ -11,7 +11,7 @@ export class MenusController {
   constructor(private readonly menus: MenusService) {}
 
   @Get()
-  @Roles('owner', 'manager', 'support')
+  @Roles('owner', 'manager', 'kitchen', 'support')
   list(@CurrentUser() user: AuthenticatedUser) {
     return this.menus.list(user.restaurantId);
   }
