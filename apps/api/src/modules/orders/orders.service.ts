@@ -79,7 +79,7 @@ export class OrdersService {
     });
     if (!outlet) throw new NotFoundException('Outlet not found');
 
-    const menuItems = await this.prisma.menuItem.findMany({
+    const menuItems: any = await this.prisma.menuItem.findMany({
       where: {
         restaurantId,
         id: { in: dto.items.map((item) => item.menuItemId) }

@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import type { OperationalActivity } from '@kitchenflow/types';
-import type { IntegrationStatus, OrderStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ObservabilityService } from '../../common/observability/observability.service';
 
@@ -110,7 +109,7 @@ export class AnalyticsService {
         revenue: group._sum.totalAmount ?? 0
       })),
       outletPerformance: outletGroups.map((group) => {
-        const outlet = outletLookup.get(group.outletId);
+        const outlet: any = outletLookup.get(group.outletId);
         return {
           outletId: group.outletId,
           outlet: outlet?.name ?? 'Unknown outlet',

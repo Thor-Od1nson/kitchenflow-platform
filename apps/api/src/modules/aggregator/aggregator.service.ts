@@ -39,9 +39,9 @@ export class AggregatorService {
         continue;
       }
 
-      const outlet = this.pick(outlets, index);
-      const firstItem = this.pick(menuItems, index);
-      const secondItem = this.pick(menuItems, index + 2);
+      const outlet: any = this.pick(outlets, index);
+      const firstItem: any = this.pick(menuItems, index);
+      const secondItem: any = this.pick(menuItems, index + 2);
       const channel = this.pick(providers, index + Date.now());
       const quantity = (index % 2) + 1;
       const lines = [
