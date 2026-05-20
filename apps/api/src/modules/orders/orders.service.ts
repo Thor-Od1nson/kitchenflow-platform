@@ -86,10 +86,10 @@ export class OrdersService {
       },
       select: { id: true, name: true, priceAmount: true, currency: true, variants: true }
     });
-    const menuLookup = new Map(menuItems.map((item) => [item.id, item]));
+    const menuLookup = new Map<string, any>(menuItems.map((item: any) => [item.id, item]));
 
     const lines = dto.items.map((item) => {
-      const menuItem = menuLookup.get(item.menuItemId);
+      const menuItem: any = menuLookup.get(item.menuItemId);
       if (!menuItem) throw new BadRequestException('One or more menu items are unavailable');
       return {
         id: `${menuItem.id}-${Date.now()}`,

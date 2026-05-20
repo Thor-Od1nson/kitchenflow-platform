@@ -289,8 +289,8 @@ export class AnalyticsService {
     };
   }
 
-  private countByStatus(statuses: OrderStatus[]) {
-    return statuses.reduce<Record<OrderStatus, number>>(
+  private countByStatus(statuses: any[]) {
+    return statuses.reduce<Record<string, number>>(
       (acc, status) => ({ ...acc, [status]: acc[status] + 1 }),
       { pending: 0, accepted: 0, preparing: 0, dispatched: 0, delivered: 0, cancelled: 0 }
     );
@@ -309,7 +309,7 @@ export class AnalyticsService {
     });
   }
 
-  private calculateOutletUptime(outletId: string, integrationGroups: Array<{ status: IntegrationStatus; _count: number }>) {
+  private calculateOutletUptime(outletId: string, integrationGroups: Array<{ status: any; _count: number }>) {
     const statusPenalty = integrationGroups.reduce((penalty, group) => {
       if (group.status === 'offline') return penalty + group._count * 8;
       if (group.status === 'degraded') return penalty + group._count * 4;
