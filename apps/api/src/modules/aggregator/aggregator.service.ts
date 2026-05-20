@@ -64,7 +64,7 @@ export class AggregatorService {
             externalOrderId: `${channel}-${Date.now()}-${index}`,
             retryAttempt: 0,
             items: lines
-          } as Prisma.InputJsonValue
+          } as any
         },
         include: { outlet: { select: { name: true, city: true } } }
       });

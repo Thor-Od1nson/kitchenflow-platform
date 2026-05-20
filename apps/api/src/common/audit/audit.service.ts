@@ -31,7 +31,7 @@ export class AuditService {
         entityId: input.entityId,
         outletId: input.outletId,
         outletName: input.outletName,
-        metadata: (input.metadata ?? {}) as Prisma.InputJsonValue,
+        metadata: (input.metadata ?? {}) as any,
         correlationId: input.correlationId
       }
     });

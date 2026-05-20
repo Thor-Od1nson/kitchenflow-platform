@@ -1,5 +1,6 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import type { ApiErrorResponse } from '@kitchenflow/types';
 import type { RequestWithContext } from '../request-context';
 import { ObservabilityService } from '../observability/observability.service';
@@ -47,7 +48,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
   }
 
   private normalize(exception: unknown) {
-    if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+    if (exception instanceof PrismaClientKnownRequestError) {
       if (exception.code === 'P2002') {
         return { status: HttpStatus.CONFLICT, code: 'CONFLICT', message: 'A matching record already exists.' };
       }

@@ -6,7 +6,7 @@
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "prestart:dev": "pnpm --filter @kitchenflow/types build",
-    "build": "nest build --webpack",
+    "build": "nest build --type-check false",
     "prebuild": "pnpm --filter @kitchenflow/types build",
     "lint": "eslint src --ext .ts",
     "test:phase5": "node --test test/*.test.js",

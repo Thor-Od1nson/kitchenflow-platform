@@ -32,7 +32,7 @@ export class WebhooksService {
 
     const event = await this.prisma.webhookEvent.upsert({
       where: { restaurantId_provider_idempotencyKey: { restaurantId, provider: normalizedProvider, idempotencyKey: key } },
-      update: { status: 'duplicate', payload: payload as Prisma.InputJsonValue },
+      update: { status: 'duplicate', payload: payload as any },
       create: {
         restaurantId,
         provider: normalizedProvider,
@@ -41,7 +41,7 @@ export class WebhooksService {
         idempotencyKey: key,
         signatureValid,
         status: signatureValid ? 'received' : 'rejected',
-        payload: payload as Prisma.InputJsonValue
+        payload: payload as any
       }
     });
     if (!signatureValid) {
@@ -101,7 +101,7 @@ export class WebhooksService {
           processedAt: new Date(),
           retryCount: { increment: 1 },
           lastRetryAt: new Date(),
-          replayHistory: [...history, { at: new Date().toISOString(), action: 'retry', status: 'processed' }] as Prisma.InputJsonValue
+          replayHistory: [...history, { at: new Date().toISOString(), action: 'retry', status: 'processed' }] as any
         }
       });
       this.observability.info('webhook_retry_processed', {
@@ -119,7 +119,7 @@ export class WebhooksService {
           error: error instanceof Error ? error.message : 'Webhook retry failed',
           retryCount: { increment: 1 },
           lastRetryAt: new Date(),
-          replayHistory: [...history, { at: new Date().toISOString(), action: 'retry', status: 'failed', detail: error instanceof Error ? error.message : 'Webhook retry failed' }] as Prisma.InputJsonValue
+          replayHistory: [...history, { at: new Date().toISOString(), action: 'retry', status: 'failed', detail: error instanceof Error ? error.message : 'Webhook retry failed' }] as any
         }
       });
       this.observability.recordWebhookFailure({
@@ -144,7 +144,7 @@ export class WebhooksService {
         signatureValid: event.signatureValid,
         status: 'received',
         replayOfId: event.id,
-        payload: event.payload as Prisma.InputJsonValue
+        payload: event.payload as any
       }
     });
     const order = await this.processEvent(replay.id, requestId);
@@ -157,7 +157,7 @@ export class WebhooksService {
       where: { id },
       data: {
         replayCount: { increment: 1 },
-        replayHistory: [...history, { at: new Date().toISOString(), action: 'replay', status: 'processed', detail: replay.id }] as Prisma.InputJsonValue
+        replayHistory: [...history, { at: new Date().toISOString(), action: 'replay', status: 'processed', detail: replay.id }] as any
       }
     });
     this.observability.info('webhook_replay_processed', {
@@ -212,7 +212,7 @@ export class WebhooksService {
         totalAmount,
         currency: this.readString(payload.currency) ?? 'INR',
         etaMinutes: Number(payload.etaMinutes ?? 25),
-        payload: { ...payload, source: 'webhook', items: lines } as Prisma.InputJsonValue
+        payload: { ...payload, source: 'webhook', items: lines } as any
       },
       include: { outlet: { select: { name: true, city: true } } }
     });

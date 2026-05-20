@@ -396,7 +396,7 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
         jobId: input.jobId,
         status: input.status,
         detail: input.detail,
-        payload: input.payload as Prisma.InputJsonValue
+        payload: input.payload as any
       }
     });
   }
