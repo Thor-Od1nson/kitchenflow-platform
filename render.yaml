@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: kitchenflow-api-prod
+    env: docker
+    dockerfilePath: infra/docker/api.Dockerfile
+    dockerContext: .
+    plan: free
+    autoDeploy: true
