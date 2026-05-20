@@ -29,7 +29,7 @@ export function useOperationsSocket() {
     if (!restaurantId || !tokens?.accessToken) return;
 
     const socket = io(`${SOCKET_URL}/operations`, {
-      auth: { token: tokens?.accessToken, restaurantId },
+      auth: { token: tokens?.accessToken, restaurantId, requestId: `socket-${Date.now()}` },
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 500,

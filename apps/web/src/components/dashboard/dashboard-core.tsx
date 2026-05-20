@@ -26,6 +26,7 @@ import {
   useAnalyticsSummary,
   useAudit,
   useControlCenter,
+  useDlq,
   useIntegrations,
   useInventory,
   useMenus,
@@ -34,6 +35,7 @@ import {
   usePayoutReconciliation,
   useQueueActivity,
   useQueueMetrics,
+  useSystemMetrics,
   useWebhooks
 } from '@/hooks/use-dashboard-data';
 import { useOpsStore } from '@/store/ops-store';
@@ -87,6 +89,8 @@ export function OverviewPage() {
 export function ControlCenterPage() {
   const control = useControlCenter();
   const queueMetrics = useQueueMetrics();
+  const systemMetrics = useSystemMetrics();
+  const dlq = useDlq();
   const intelligence = useOperationalIntelligence();
   const orders = useOrders({ page: 1, limit: 8, status: 'all' });
   const socketStatus = useOpsStore((state) => state.socketStatus);
@@ -94,6 +98,13 @@ export function ControlCenterPage() {
   const triggerFailure = useMutation({
     mutationFn: dashboardApi.enqueueTestFailure,
     onSuccess: () => {
+      void queueMetrics.refetch();
+    }
+  });
+  const retryDlq = useMutation({
+    mutationFn: dashboardApi.retryDlq,
+    onSuccess: () => {
+      void dlq.refetch();
       void queueMetrics.refetch();
     }
   });
@@ -114,6 +125,23 @@ export function ControlCenterPage() {
         </MetricCard>
         <MetricCard label="Realtime" value={socketStatus} detail={stale ? 'Fallback polling active' : `Last event ${lastRealtimeAt ? formatDateTime(lastRealtimeAt) : 'none'}`}>
           <Bell className="size-5 text-royal" />
+        </MetricCard>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <MetricCard label="API health" value={systemMetrics.isError ? 'degraded' : 'healthy'} detail={`${systemMetrics.data?.requests.averageMs ?? 0}ms avg request`}>
+          <Activity className="size-5 text-royal" />
+        </MetricCard>
+        <MetricCard label="Queue latency" value={`${queueMetrics.data?.averageProcessingMs ?? 0}ms`} detail={`${queueMetrics.data?.counts.backlog ?? 0} jobs waiting`}>
+          <Clock className="size-5 text-royal" />
+        </MetricCard>
+        <MetricCard label="Websocket uptime" value={socketStatus} detail={`${systemMetrics.data?.websocket.activeConnections ?? 0} active connections`}>
+          <Bell className="size-5 text-royal" />
+        </MetricCard>
+        <MetricCard label="Retry spikes" value={String(systemMetrics.data?.queues?.retryCount ?? queueMetrics.data?.retryCount ?? 0)} detail={`${queueMetrics.data?.dlqCount ?? 0} DLQ jobs`}>
+          <AlertCircle className="size-5 text-royal" />
+        </MetricCard>
+        <MetricCard label="Webhook failures" value={String(systemMetrics.data?.webhooks?.failures ?? control.data?.failedWebhookCount ?? 0)} detail="Failed or rejected today">
+          <AlertCircle className="size-5 text-royal" />
         </MetricCard>
       </div>
       <div className="grid gap-4 xl:grid-cols-[1fr_.9fr]">
@@ -143,6 +171,22 @@ export function ControlCenterPage() {
           <p className={`mt-4 text-sm font-semibold ${queueMetrics.data?.workerOnline ? 'text-emerald-600' : 'text-rose-600'}`}>
             Worker {queueMetrics.data?.workerOnline ? 'online' : 'offline'} · heartbeat {queueMetrics.data?.workerHeartbeatAt ? formatDateTime(queueMetrics.data.workerHeartbeatAt) : 'none'}
           </p>
+          <div className="mt-5 divide-y divide-line rounded-xl border border-line">
+            <AsyncState loading={dlq.isLoading} error={dlq.isError} empty={!dlq.data?.length}>
+              {dlq.data?.slice(0, 4).map((job) => (
+                <div key={job.id} className="grid gap-2 p-3 text-sm md:grid-cols-[.8fr_1fr_.7fr]">
+                  <div>
+                    <p className="font-bold">{job.jobName}</p>
+                    <p className="text-xs text-muted">{job.requestId ?? job.originalJobId ?? 'No request id'}</p>
+                  </div>
+                  <p className="text-muted">{job.failedReason}</p>
+                  <Button size="sm" variant="secondary" onClick={() => retryDlq.mutate(job.id)} disabled={retryDlq.isPending || job.dlqRetryCount >= 3}>
+                    Retry DLQ
+                  </Button>
+                </div>
+              ))}
+            </AsyncState>
+          </div>
         </Card>
         <Card className="p-5">
           <h2 className="text-lg font-bold">System health</h2>
@@ -1064,8 +1108,13 @@ export function NotificationsPage() {
 export function AuditPage() {
   const [query, setQuery] = useState('');
   const [action, setAction] = useState('all');
+  const [severity, setSeverity] = useState('all');
+  const [actorRole, setActorRole] = useState('all');
+  const [operationType, setOperationType] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
-  const audit = useAudit({ page, limit: 20, query, action });
+  const audit = useAudit({ page, limit: 20, query, action, severity, actorRole, operationType, dateFrom, dateTo });
 
   return (
     <div className="space-y-6">
@@ -1095,6 +1144,60 @@ export function AuditPage() {
               </option>
             ))}
           </select>
+          <select
+            className="h-10 rounded-xl border border-line bg-panel px-3 text-sm font-semibold text-ink"
+            value={severity}
+            onChange={(event) => {
+              setPage(1);
+              setSeverity(event.target.value);
+            }}
+          >
+            <option value="all">All severities</option>
+            {['info', 'warning', 'error', 'critical'].map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+          <select
+            className="h-10 rounded-xl border border-line bg-panel px-3 text-sm font-semibold text-ink"
+            value={actorRole}
+            onChange={(event) => {
+              setPage(1);
+              setActorRole(event.target.value);
+            }}
+          >
+            <option value="all">All actors</option>
+            {['owner', 'manager', 'kitchen', 'support'].map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+          <Input
+            value={operationType}
+            onChange={(event) => {
+              setPage(1);
+              setOperationType(event.target.value);
+            }}
+            placeholder="Operation type"
+          />
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(event) => {
+              setPage(1);
+              setDateFrom(event.target.value);
+            }}
+          />
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(event) => {
+              setPage(1);
+              setDateTo(event.target.value);
+            }}
+          />
         </div>
       </Card>
       <Card className="overflow-hidden">
@@ -1105,6 +1208,7 @@ export function AuditPage() {
                 <div>
                   <p className="font-bold">{item.action.replace('.', ' ')}</p>
                   <p className="mt-1 text-xs text-muted">{item.entityType}{item.entityId ? ` - ${item.entityId}` : ''}</p>
+                  <Badge className={item.severity === 'warning' ? 'mt-2 bg-amber-50 text-amber-700 ring-amber-200' : 'mt-2 bg-panel-muted text-muted ring-line'}>{item.severity ?? 'info'}</Badge>
                 </div>
                 <div>
                   <p className="font-semibold">{item.actorRole ?? 'system'}</p>

@@ -1,17 +1,32 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Job, Queue, Worker } from 'bullmq';
 import { Prisma } from '@prisma/client';
 import type { OrderStatus } from '@kitchenflow/types';
+import { ObservabilityService } from '../../common/observability/observability.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OperationsGateway } from '../../realtime/operations.gateway';
 
 type QueuePayload =
-  | { type: 'order-status'; restaurantId: string; orderId: string; status: OrderStatus }
-  | { type: 'sla-scan'; restaurantId?: string }
-  | { type: 'notification'; restaurantId: string; detail: string }
-  | { type: 'order-aging'; restaurantId?: string }
-  | { type: 'test-failure'; restaurantId: string };
+  (
+    | { type: 'order-status'; restaurantId: string; orderId: string; status: OrderStatus }
+    | { type: 'sla-scan'; restaurantId?: string }
+    | { type: 'notification'; restaurantId: string; detail: string }
+    | { type: 'order-aging'; restaurantId?: string }
+    | { type: 'test-failure'; restaurantId: string }
+  ) & { requestId?: string; dlqRetryCount?: number };
+
+interface DlqPayload {
+  originalQueue: string;
+  originalJobId?: string;
+  jobName: string;
+  data: QueuePayload;
+  failedReason: string;
+  attemptsMade: number;
+  movedAt: string;
+  requestId?: string;
+  dlqRetryCount: number;
+}
 
 const terminalStatuses = ['delivered', 'cancelled'];
 
@@ -19,6 +34,7 @@ const terminalStatuses = ['delivered', 'cancelled'];
 export class QueuesService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(QueuesService.name);
   private queue?: Queue<QueuePayload>;
+  private dlqQueue?: Queue<DlqPayload>;
   private worker?: Worker<QueuePayload>;
   private heartbeat?: NodeJS.Timeout;
   private workerHeartbeatAt: Date | null = null;
@@ -26,7 +42,8 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
-    private readonly operations: OperationsGateway
+    private readonly operations: OperationsGateway,
+    private readonly observability: ObservabilityService
   ) {}
 
   onModuleInit() {
@@ -37,6 +54,7 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.queue = new Queue<QueuePayload>('kitchenflow-ops', { connection });
+    this.dlqQueue = new Queue<DlqPayload>('kitchenflow-ops-dlq', { connection });
     this.worker = new Worker<QueuePayload>('kitchenflow-ops', (job) => this.process(job), {
       connection,
       concurrency: 4
@@ -45,7 +63,24 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
     this.heartbeat = setInterval(() => {
       this.workerHeartbeatAt = new Date();
     }, 10_000);
+    this.worker.on('active', () => this.observability.recordQueueActive(1));
+    this.worker.on('completed', (job) => {
+      this.observability.recordQueueActive(-1);
+      this.observability.info('queue_job_completed', {
+        module: 'queues',
+        requestId: job.data.requestId,
+        jobId: job.id,
+        route: job.name
+      });
+    });
     this.worker.on('failed', (job, error) => {
+      this.observability.recordQueueActive(-1);
+      this.observability.recordQueueFailed({
+        requestId: job?.data.requestId,
+        jobId: job?.id,
+        route: job?.name,
+        errorMessage: error.message
+      });
       void this.recordActivity({
         restaurantId: job?.data && 'restaurantId' in job.data ? job.data.restaurantId : undefined,
         queue: 'kitchenflow-ops',
@@ -55,6 +90,9 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
         detail: error.message,
         payload: { ...(job?.data ?? {}), attemptsMade: job?.attemptsMade ?? 0 }
       });
+      if (job && job.attemptsMade >= Number(job.opts.attempts ?? 1)) {
+        void this.moveToDlq(job, error);
+      }
     });
   }
 
@@ -62,26 +100,27 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
     if (this.heartbeat) clearInterval(this.heartbeat);
     await this.worker?.close();
     await this.queue?.close();
+    await this.dlqQueue?.close();
   }
 
-  async enqueueOrderStatus(restaurantId: string, orderId: string, status: OrderStatus, delayMs: number) {
-    return this.enqueue('order-status', { type: 'order-status', restaurantId, orderId, status }, delayMs, 3);
+  async enqueueOrderStatus(restaurantId: string, orderId: string, status: OrderStatus, delayMs: number, requestId?: string) {
+    return this.enqueue('order-status', { type: 'order-status', restaurantId, orderId, status, requestId }, delayMs, 3);
   }
 
-  async enqueueSlaScan(restaurantId?: string, delayMs = 60_000) {
-    return this.enqueue('sla-scan', { type: 'sla-scan', restaurantId }, delayMs, 2);
+  async enqueueSlaScan(restaurantId?: string, delayMs = 60_000, requestId?: string) {
+    return this.enqueue('sla-scan', { type: 'sla-scan', restaurantId, requestId }, delayMs, 2);
   }
 
-  async enqueueNotification(restaurantId: string, detail: string, delayMs: number) {
-    return this.enqueue('notification', { type: 'notification', restaurantId, detail }, delayMs, 3);
+  async enqueueNotification(restaurantId: string, detail: string, delayMs: number, requestId?: string) {
+    return this.enqueue('notification', { type: 'notification', restaurantId, detail, requestId }, delayMs, 3);
   }
 
-  async enqueueOrderAging(restaurantId?: string, delayMs = 120_000) {
-    return this.enqueue('order-aging', { type: 'order-aging', restaurantId }, delayMs, 2);
+  async enqueueOrderAging(restaurantId?: string, delayMs = 120_000, requestId?: string) {
+    return this.enqueue('order-aging', { type: 'order-aging', restaurantId, requestId }, delayMs, 2);
   }
 
-  async enqueueTestFailure(restaurantId: string) {
-    return this.enqueue('test-failure', { type: 'test-failure', restaurantId }, 0, 2);
+  async enqueueTestFailure(restaurantId: string, requestId?: string) {
+    return this.enqueue('test-failure', { type: 'test-failure', restaurantId, requestId }, 0, 2);
   }
 
   async recentActivity(restaurantId: string) {
@@ -112,6 +151,7 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
       return sum + (typeof payload.attemptsMade === 'number' ? payload.attemptsMade : 0);
     }, 0);
     const heartbeatAgeMs = this.workerHeartbeatAt ? Date.now() - this.workerHeartbeatAt.getTime() : Number.POSITIVE_INFINITY;
+    const dlqCounts = this.dlqQueue ? await this.dlqQueue.getJobCounts('waiting', 'delayed') : { waiting: 0, delayed: 0 };
     return {
       generatedAt: new Date().toISOString(),
       workerHeartbeatAt: this.workerHeartbeatAt?.toISOString() ?? null,
@@ -126,8 +166,59 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
         backlog: (counts.waiting ?? 0) + (counts.active ?? 0) + (counts.delayed ?? 0)
       },
       retryCount,
-      averageProcessingMs: durations.length ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length) : 0
+      averageProcessingMs: durations.length ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length) : 0,
+      dlqCount: (dlqCounts.waiting ?? 0) + (dlqCounts.delayed ?? 0)
     };
+  }
+
+  async dlq() {
+    if (!this.dlqQueue) return [];
+    const jobs = await this.dlqQueue.getJobs(['waiting', 'delayed'], 0, 100, false);
+    return jobs.map((job) => ({
+      id: job.id,
+      originalJobId: job.data.originalJobId,
+      jobName: job.data.jobName,
+      queue: job.data.originalQueue,
+      failedReason: job.data.failedReason,
+      attemptsMade: job.data.attemptsMade,
+      dlqRetryCount: job.data.dlqRetryCount,
+      requestId: job.data.requestId,
+      movedAt: job.data.movedAt,
+      payload: job.data.data
+    }));
+  }
+
+  async retryDlqJob(id: string, requestId?: string) {
+    if (!this.queue || !this.dlqQueue) {
+      throw new BadRequestException('Redis queue unavailable');
+    }
+    const dlqJob = await this.dlqQueue.getJob(id);
+    if (!dlqJob) {
+      throw new NotFoundException('DLQ job not found');
+    }
+    if (dlqJob.data.dlqRetryCount >= 3) {
+      this.observability.warn('dlq_poison_job_blocked', {
+        module: 'queues',
+        requestId,
+        jobId: id,
+        route: dlqJob.data.jobName
+      });
+      throw new BadRequestException('Poison job retry limit reached');
+    }
+    const retryPayload = {
+      ...dlqJob.data.data,
+      requestId: requestId ?? dlqJob.data.requestId,
+      dlqRetryCount: dlqJob.data.dlqRetryCount + 1
+    } as QueuePayload;
+    const retry = await this.enqueue(dlqJob.data.jobName, retryPayload, 0, 2);
+    await dlqJob.remove();
+    this.observability.recordQueueRetry({
+      requestId: retryPayload.requestId,
+      jobId: retry?.id,
+      route: dlqJob.data.jobName,
+      originalJobId: dlqJob.data.originalJobId
+    });
+    return { ok: true, retriedJobId: retry?.id ?? null };
   }
 
   private async enqueue(name: string, payload: QueuePayload, delayMs: number, attempts: number) {
@@ -159,6 +250,13 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
       detail: `${name} queued`,
       payload
     });
+    this.observability.info('queue_job_queued', {
+      module: 'queues',
+      requestId: payload.requestId,
+      jobId: job.id,
+      route: name,
+      orderId: payload.type === 'order-status' ? payload.orderId : undefined
+    });
     return job;
   }
 
@@ -166,6 +264,13 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
     const payload = job.data;
     const startedAt = Date.now();
     this.workerHeartbeatAt = new Date();
+    this.observability.info('queue_job_started', {
+      module: 'queues',
+      requestId: payload.requestId,
+      jobId: job.id,
+      route: job.name,
+      orderId: payload.type === 'order-status' ? payload.orderId : undefined
+    });
     if (payload.type === 'order-status') {
       await this.processOrderStatus(payload.restaurantId, payload.orderId, payload.status, job, startedAt);
     } else if (payload.type === 'sla-scan') {
@@ -201,6 +306,7 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
     });
     const serialized = this.serializeOrder(updated);
     this.operations.emitOrderStatusUpdated({
+      requestId: job.data.requestId,
       restaurantId,
       orderId,
       outletId: updated.outletId,
@@ -293,6 +399,51 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
         payload: input.payload as Prisma.InputJsonValue
       }
     });
+  }
+
+  private async moveToDlq(job: Job<QueuePayload>, error: Error) {
+    if (!this.dlqQueue) return;
+    const retryCount = job.data.dlqRetryCount ?? 0;
+    const dlqJob = await this.dlqQueue.add(
+      'dead-letter',
+      {
+        originalQueue: job.queueName,
+        originalJobId: job.id,
+        jobName: job.name,
+        data: job.data,
+        failedReason: error.message,
+        attemptsMade: job.attemptsMade,
+        movedAt: new Date().toISOString(),
+        requestId: job.data.requestId,
+        dlqRetryCount: retryCount
+      },
+      { jobId: `dlq-${job.id}`, removeOnComplete: false, removeOnFail: false }
+    );
+    this.observability.recordDlqMoved({
+      requestId: job.data.requestId,
+      jobId: job.id,
+      dlqJobId: dlqJob.id,
+      route: job.name,
+      orderId: job.data.type === 'order-status' ? job.data.orderId : undefined
+    });
+    await this.recordActivity({
+      restaurantId: 'restaurantId' in job.data ? job.data.restaurantId : undefined,
+      queue: job.queueName,
+      jobName: job.name,
+      jobId: job.id,
+      status: 'dlq',
+      detail: error.message,
+      payload: { ...job.data, attemptsMade: job.attemptsMade, dlqJobId: dlqJob.id }
+    });
+    try {
+      await job.remove();
+    } catch {
+      this.observability.debug('queue_failed_job_retained_after_dlq_copy', {
+        module: 'queues',
+        requestId: job.data.requestId,
+        jobId: job.id
+      });
+    }
   }
 
   private redisConnection() {

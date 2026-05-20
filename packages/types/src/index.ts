@@ -78,6 +78,7 @@ export interface Order {
 }
 
 export interface OrderStatusUpdatedEvent {
+  requestId?: string;
   restaurantId: string;
   orderId: string;
   outletId: string;
@@ -95,6 +96,7 @@ export interface OrderStatusUpdatedEvent {
 }
 
 export interface OrderCreatedEvent {
+  requestId?: string;
   restaurantId: string;
   order: Order;
 }
@@ -238,6 +240,7 @@ export interface QueueMetrics {
   };
   retryCount: number;
   averageProcessingMs: number;
+  dlqCount?: number;
 }
 
 export interface AdvancedOperationalAnalytics {
@@ -332,6 +335,7 @@ export interface InventoryActivity {
 }
 
 export interface InventoryChangedEvent {
+  requestId?: string;
   restaurantId: string;
   outletId: string;
   sku: string;
@@ -379,6 +383,7 @@ export interface AuditLogEntry {
   outletName?: string | null;
   metadata: Record<string, unknown>;
   correlationId?: string | null;
+  severity?: 'info' | 'warning' | 'error' | 'critical';
   createdAt: string;
 }
 
@@ -394,6 +399,7 @@ export interface ApiErrorResponse {
   success: false;
   code: string;
   message: string;
+  requestId: string;
   correlationId: string;
 }
 
@@ -410,6 +416,19 @@ export interface OperationalMetrics {
     totalDisconnects: number;
     emittedEvents: number;
     rejectedConnections: number;
+    eventsPerSecond?: number;
+  };
+  queues?: {
+    active: number;
+    failed: number;
+    retryCount: number;
+    dlqJobs: number;
+  };
+  webhooks?: {
+    failures: number;
+  };
+  auth?: {
+    refreshCount: number;
   };
   operations: {
     ordersToday: number;

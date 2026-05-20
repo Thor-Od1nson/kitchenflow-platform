@@ -4,5 +4,12 @@ dist
 .env
 .env.*
 !.env.example
+!.env.development
+!.env.production
+!**/.env.example
+!**/.env.development
+!**/.env.production
 coverage
 pnpm-lock.yaml
+
+.vercel

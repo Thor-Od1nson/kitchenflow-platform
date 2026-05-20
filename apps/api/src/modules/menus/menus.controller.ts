@@ -3,6 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RbacGuard } from '../../common/guards/rbac.guard';
+import { UpdateMenuAvailabilityDto } from './dto';
 import { MenusService } from './menus.service';
 
 @UseGuards(AuthGuard('jwt'), RbacGuard)
@@ -18,7 +19,7 @@ export class MenusController {
 
   @Patch('availability')
   @Roles('owner', 'manager')
-  updateAvailability(@Body() body: { ids: string[]; available: boolean }) {
+  updateAvailability(@Body() body: UpdateMenuAvailabilityDto) {
     return this.menus.updateAvailability(body.ids, body.available);
   }
 

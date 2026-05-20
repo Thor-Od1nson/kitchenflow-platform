@@ -123,6 +123,7 @@ export class InventoryService {
       correlationId
     });
     this.operations.emitInventoryChanged({
+      requestId: correlationId,
       restaurantId,
       outletId,
       sku: updated.sku,

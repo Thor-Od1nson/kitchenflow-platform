@@ -14,6 +14,10 @@ export const apiClient = axios.create({
 let refreshPromise: Promise<AuthResponse> | null = null;
 let correlationSequence = 0;
 
+function nextRequestId() {
+  return `web-${Date.now()}-${correlationSequence++}`;
+}
+
 export function getApiErrorMessage(error: unknown) {
   if (axios.isAxiosError<ApiErrorResponse>(error)) {
     return error.response?.data?.message ?? error.message;
@@ -23,7 +27,7 @@ export function getApiErrorMessage(error: unknown) {
 
 function refreshTokens(refreshToken: string) {
   refreshPromise ??= axios
-    .post<AuthResponse>(`${API_BASE_URL}/auth/refresh`, { refreshToken })
+    .post<AuthResponse>(`${API_BASE_URL}/auth/refresh`, { refreshToken }, { headers: { 'x-request-id': nextRequestId() } })
     .then((response) => {
       persistTokens(response.data);
       return response.data;
@@ -40,7 +44,9 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (tokens?.accessToken) {
     config.headers.Authorization = `Bearer ${tokens.accessToken}`;
   }
-  config.headers['x-correlation-id'] = `web-${Date.now()}-${correlationSequence++}`;
+  const requestId = nextRequestId();
+  config.headers['x-request-id'] = requestId;
+  config.headers['x-correlation-id'] = requestId;
   return config;
 });
 
@@ -69,7 +75,8 @@ apiClient.interceptors.response.use(
 
 export const authApi = {
   async login(email: string, password: string) {
-    const response = await axios.post<AuthResponse>(`${API_BASE_URL}/auth/login`, { email, password });
+    const requestId = nextRequestId();
+    const response = await axios.post<AuthResponse>(`${API_BASE_URL}/auth/login`, { email, password }, { headers: { 'x-request-id': requestId, 'x-correlation-id': requestId } });
     return response.data;
   },
   async me() {
@@ -80,6 +87,7 @@ export const authApi = {
     return refreshTokens(tokens.refreshToken);
   },
   async logout(refreshToken: string) {
-    await axios.post(`${API_BASE_URL}/auth/logout`, { refreshToken });
+    const requestId = nextRequestId();
+    await axios.post(`${API_BASE_URL}/auth/logout`, { refreshToken }, { headers: { 'x-request-id': requestId, 'x-correlation-id': requestId } });
   }
 };

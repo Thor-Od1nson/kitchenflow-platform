@@ -2,20 +2,46 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from
 import { Prisma } from '@prisma/client';
 import type { ApiErrorResponse } from '@kitchenflow/types';
 import type { RequestWithContext } from '../request-context';
+import { ObservabilityService } from '../observability/observability.service';
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
+  constructor(private readonly observability?: ObservabilityService) {}
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<RequestWithContext>();
     const response = ctx.getResponse<{ status: (status: number) => { json: (body: ApiErrorResponse) => void } }>();
     const { status, code, message } = this.normalize(exception);
+    const requestId = request.requestId ?? request.correlationId ?? 'unknown';
     const body: ApiErrorResponse = {
       success: false,
       code,
       message,
-      correlationId: request.correlationId ?? 'unknown'
+      requestId,
+      correlationId: requestId
     };
+
+    if (status >= 500) {
+      this.observability?.error('unhandled_exception', {
+        module: 'http',
+        requestId,
+        route: request.originalUrl,
+        userId: request.user?.userId,
+        role: request.user?.role,
+        errorName: exception instanceof Error ? exception.name : 'UnknownError',
+        errorMessage: exception instanceof Error ? exception.message : 'Unknown error',
+        stack: process.env.NODE_ENV === 'production' ? undefined : exception instanceof Error ? exception.stack : undefined
+      });
+    } else {
+      this.observability?.warn('handled_exception', {
+        module: 'http',
+        requestId,
+        route: request.originalUrl,
+        status,
+        code
+      });
+    }
 
     response.status(status).json(body);
   }

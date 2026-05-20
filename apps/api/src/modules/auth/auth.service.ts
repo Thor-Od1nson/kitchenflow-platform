@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { Role } from '@kitchenflow/types';
 import * as bcrypt from 'bcryptjs';
 import { AuditService } from '../../common/audit/audit.service';
+import { ObservabilityService } from '../../common/observability/observability.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto';
 
@@ -19,7 +20,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
-    private readonly audit: AuditService
+    private readonly audit: AuditService,
+    private readonly observability: ObservabilityService
   ) {}
 
   async login(dto: LoginDto, correlationId?: string) {
@@ -60,7 +62,7 @@ export class AuthService {
     return this.issueTokens(user.id, user.restaurantId, user.role);
   }
 
-  async refresh(refreshToken: string) {
+  async refresh(refreshToken: string, correlationId?: string) {
     const payload = await this.verifyRefreshToken(refreshToken);
     const tokens = await this.prisma.refreshToken.findMany({
       where: {
@@ -80,6 +82,11 @@ export class AuthService {
       data: { revokedAt: new Date() }
     });
 
+    this.observability.recordAuthRefresh({
+      requestId: correlationId,
+      userId: payload.sub,
+      role: payload.role
+    });
     return this.issueTokens(payload.sub, payload.restaurantId, payload.role);
   }
 

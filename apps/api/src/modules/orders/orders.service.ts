@@ -137,7 +137,7 @@ export class OrdersService {
       metadata: { publicId: created.publicId, channel: dto.channel, totalAmount },
       correlationId
     });
-    this.operations.emitOrderCreated({ restaurantId, order: serialized });
+    this.operations.emitOrderCreated({ requestId: correlationId, restaurantId, order: serialized });
     return serialized;
   }
 
@@ -178,6 +178,7 @@ export class OrdersService {
       correlationId
     });
     this.operations.emitOrderStatusUpdated({
+      requestId: correlationId,
       restaurantId,
       orderId: id,
       previousStatus,

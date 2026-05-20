@@ -53,6 +53,22 @@ export function useQueueMetrics() {
   });
 }
 
+export function useDlq() {
+  return useQuery({
+    queryKey: ['queue-dlq'],
+    queryFn: dashboardApi.dlq,
+    refetchInterval: 10_000
+  });
+}
+
+export function useSystemMetrics() {
+  return useQuery({
+    queryKey: ['system-metrics'],
+    queryFn: dashboardApi.systemMetrics,
+    refetchInterval: 10_000
+  });
+}
+
 export function useControlCenter() {
   return useQuery({
     queryKey: ['control-center'],
@@ -68,7 +84,20 @@ export function useOperationalIntelligence() {
   });
 }
 
-export function useAudit(query: { page?: number; limit?: number; query?: string; action?: string; outletId?: string; entityType?: string }) {
+export function useAudit(query: {
+  page?: number;
+  limit?: number;
+  query?: string;
+  action?: string;
+  outletId?: string;
+  entityType?: string;
+  actorUserId?: string;
+  actorRole?: string;
+  severity?: string;
+  operationType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}) {
   return useQuery({
     queryKey: ['audit', query],
     queryFn: () => dashboardApi.audit(query)

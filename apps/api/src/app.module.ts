@@ -14,6 +14,7 @@ import { HealthModule } from './modules/health/health.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { MenusModule } from './modules/menus/menus.module';
+import { MetricsModule } from './modules/metrics/metrics.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PayoutsModule } from './modules/payouts/payouts.module';
 import { QueuesModule } from './modules/queues/queues.module';
@@ -36,6 +37,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     WebhooksModule,
     PayoutsModule,
     MenusModule,
+    MetricsModule,
     IntegrationsModule,
     InventoryModule,
     AnalyticsModule,

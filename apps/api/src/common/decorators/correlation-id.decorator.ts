@@ -4,6 +4,6 @@ import type { RequestWithContext } from '../request-context';
 export const CorrelationId = createParamDecorator(
   (_data: unknown, context: ExecutionContext): string | undefined => {
     const request = context.switchToHttp().getRequest<RequestWithContext>();
-    return request.correlationId;
+    return request.requestId ?? request.correlationId;
   }
 );

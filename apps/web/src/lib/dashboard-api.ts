@@ -9,6 +9,7 @@ import type {
   InventoryResponse,
   MenuItem,
   OperationalActivity,
+  OperationalMetrics,
   Order,
   OrderStatus,
   PaginatedResponse,
@@ -38,6 +39,19 @@ export interface CreateOrderInput {
   etaMinutes: number;
   items: Array<{ menuItemId: string; quantity: number }>;
   clientMutationId?: string;
+}
+
+export interface DlqJob {
+  id: string;
+  originalJobId?: string | null;
+  jobName: string;
+  queue: string;
+  failedReason: string;
+  attemptsMade: number;
+  dlqRetryCount: number;
+  requestId?: string;
+  movedAt: string;
+  payload: Record<string, unknown>;
 }
 
 function cleanParams(query: OrdersQuery) {
@@ -91,6 +105,18 @@ export const dashboardApi = {
     const response = await apiClient.get<QueueMetrics>('/queues/metrics');
     return response.data;
   },
+  async dlq() {
+    const response = await apiClient.get<DlqJob[]>('/queues/dlq');
+    return response.data;
+  },
+  async retryDlq(id: string) {
+    const response = await apiClient.post(`/queues/dlq/${id}/retry`);
+    return response.data;
+  },
+  async systemMetrics() {
+    const response = await apiClient.get<OperationalMetrics>('/health/metrics');
+    return response.data;
+  },
   async enqueueTestFailure() {
     const response = await apiClient.post('/queues/test-failure');
     return response.data;
@@ -115,7 +141,22 @@ export const dashboardApi = {
     const response = await apiClient.post('/queues/sla-scan');
     return response.data;
   },
-  async audit(query: { page?: number; limit?: number; query?: string; action?: string; outletId?: string; entityType?: string } = {}) {
+  async audit(
+    query: {
+      page?: number;
+      limit?: number;
+      query?: string;
+      action?: string;
+      outletId?: string;
+      entityType?: string;
+      actorUserId?: string;
+      actorRole?: string;
+      severity?: string;
+      operationType?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    } = {}
+  ) {
     const response = await apiClient.get<AuditLogResponse>('/audit', { params: cleanParams(query) });
     return response.data;
   },

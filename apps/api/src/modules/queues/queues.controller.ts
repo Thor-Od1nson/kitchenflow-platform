@@ -1,5 +1,7 @@
-import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
+import { CorrelationId } from '../../common/decorators/correlation-id.decorator';
 import { CurrentUser, type AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RbacGuard } from '../../common/guards/rbac.guard';
@@ -17,9 +19,10 @@ export class QueuesController {
   }
 
   @Post('sla-scan')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Roles('owner', 'manager')
-  scan(@CurrentUser() user: AuthenticatedUser) {
-    return this.queues.enqueueSlaScan(user.restaurantId, 0);
+  scan(@CurrentUser() user: AuthenticatedUser, @CorrelationId() requestId?: string) {
+    return this.queues.enqueueSlaScan(user.restaurantId, 0, requestId);
   }
 
   @Get('metrics')
@@ -29,8 +32,22 @@ export class QueuesController {
   }
 
   @Post('test-failure')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Roles('owner')
-  testFailure(@CurrentUser() user: AuthenticatedUser) {
-    return this.queues.enqueueTestFailure(user.restaurantId);
+  testFailure(@CurrentUser() user: AuthenticatedUser, @CorrelationId() requestId?: string) {
+    return this.queues.enqueueTestFailure(user.restaurantId, requestId);
+  }
+
+  @Get('dlq')
+  @Roles('owner')
+  dlq() {
+    return this.queues.dlq();
+  }
+
+  @Post('dlq/:id/retry')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Roles('owner')
+  retryDlq(@Param('id') id: string, @CorrelationId() requestId?: string) {
+    return this.queues.retryDlqJob(id, requestId);
   }
 }

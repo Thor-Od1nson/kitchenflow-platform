@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/
 import { createHmac, timingSafeEqual } from 'crypto';
 import { Prisma } from '@prisma/client';
 import type { Channel, Money, Order, OrderStatus } from '@kitchenflow/types';
+import { ObservabilityService } from '../../common/observability/observability.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OperationsGateway } from '../../realtime/operations.gateway';
 import { QueuesService } from '../queues/queues.service';
@@ -11,10 +12,11 @@ export class WebhooksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly operations: OperationsGateway,
-    private readonly queues: QueuesService
+    private readonly queues: QueuesService,
+    private readonly observability: ObservabilityService
   ) {}
 
-  async ingest(provider: string, payload: Record<string, unknown>, signature?: string, idempotencyKey?: string) {
+  async ingest(provider: string, payload: Record<string, unknown>, signature?: string, idempotencyKey?: string, requestId?: string) {
     const normalizedProvider = provider.toLowerCase();
     const restaurantId = this.readString(payload.restaurantId);
     if (!restaurantId) throw new BadRequestException('restaurantId is required');
@@ -42,22 +44,36 @@ export class WebhooksService {
         payload: payload as Prisma.InputJsonValue
       }
     });
-    if (!signatureValid) throw new UnauthorizedException('Invalid webhook signature');
+    if (!signatureValid) {
+      this.observability.recordWebhookFailure({ requestId, route: normalizedProvider, status: 'rejected' });
+      throw new UnauthorizedException('Invalid webhook signature');
+    }
     if (event.status === 'duplicate' || event.processedAt) return { ok: true, duplicate: true, eventId: event.id };
 
     try {
-      const order = await this.processEvent(event.id);
+      const order = await this.processEvent(event.id, requestId);
       await this.prisma.webhookEvent.update({
         where: { id: event.id },
         data: { status: 'processed', processedAt: new Date() }
       });
-      await this.queues.enqueueOrderStatus(restaurantId, order.id, 'accepted', 10_000);
-      await this.queues.enqueueNotification(restaurantId, `${order.publicId} ingested through ${normalizedProvider}`, 2_000);
+      await this.queues.enqueueOrderStatus(restaurantId, order.id, 'accepted', 10_000, requestId);
+      await this.queues.enqueueNotification(restaurantId, `${order.publicId} ingested through ${normalizedProvider}`, 2_000, requestId);
+      this.observability.info('webhook_processed', {
+        module: 'webhooks',
+        requestId,
+        route: normalizedProvider,
+        orderId: order.id
+      });
       return { ok: true, eventId: event.id, order };
     } catch (error) {
       await this.prisma.webhookEvent.update({
         where: { id: event.id },
         data: { status: 'failed', error: error instanceof Error ? error.message : 'Webhook processing failed' }
+      });
+      this.observability.recordWebhookFailure({
+        requestId,
+        route: normalizedProvider,
+        errorMessage: error instanceof Error ? error.message : 'Webhook processing failed'
       });
       throw error;
     }
@@ -71,12 +87,12 @@ export class WebhooksService {
     });
   }
 
-  async retry(restaurantId: string, id: string) {
+  async retry(restaurantId: string, id: string, requestId?: string) {
     const event = await this.prisma.webhookEvent.findFirst({ where: { id, restaurantId } });
     if (!event) throw new BadRequestException('Webhook event not found');
     const history = this.history(event.replayHistory);
     try {
-      const order = await this.processEvent(event.id);
+      const order = await this.processEvent(event.id, requestId);
       await this.prisma.webhookEvent.update({
         where: { id },
         data: {
@@ -87,6 +103,12 @@ export class WebhooksService {
           lastRetryAt: new Date(),
           replayHistory: [...history, { at: new Date().toISOString(), action: 'retry', status: 'processed' }] as Prisma.InputJsonValue
         }
+      });
+      this.observability.info('webhook_retry_processed', {
+        module: 'webhooks',
+        requestId,
+        route: event.provider,
+        orderId: order.id
       });
       return { ok: true, eventId: id, order };
     } catch (error) {
@@ -100,11 +122,16 @@ export class WebhooksService {
           replayHistory: [...history, { at: new Date().toISOString(), action: 'retry', status: 'failed', detail: error instanceof Error ? error.message : 'Webhook retry failed' }] as Prisma.InputJsonValue
         }
       });
+      this.observability.recordWebhookFailure({
+        requestId,
+        route: event.provider,
+        errorMessage: error instanceof Error ? error.message : 'Webhook retry failed'
+      });
       throw error;
     }
   }
 
-  async replay(restaurantId: string, id: string) {
+  async replay(restaurantId: string, id: string, requestId?: string) {
     const event = await this.prisma.webhookEvent.findFirst({ where: { id, restaurantId } });
     if (!event) throw new BadRequestException('Webhook event not found');
     const replay = await this.prisma.webhookEvent.create({
@@ -120,7 +147,7 @@ export class WebhooksService {
         payload: event.payload as Prisma.InputJsonValue
       }
     });
-    const order = await this.processEvent(replay.id);
+    const order = await this.processEvent(replay.id, requestId);
     await this.prisma.webhookEvent.update({
       where: { id: replay.id },
       data: { status: 'processed', processedAt: new Date() }
@@ -133,21 +160,27 @@ export class WebhooksService {
         replayHistory: [...history, { at: new Date().toISOString(), action: 'replay', status: 'processed', detail: replay.id }] as Prisma.InputJsonValue
       }
     });
+    this.observability.info('webhook_replay_processed', {
+      module: 'webhooks',
+      requestId,
+      route: event.provider,
+      orderId: order.id
+    });
     return { ok: true, eventId: replay.id, replayOfId: id, order };
   }
 
-  private async processEvent(eventId: string) {
+  private async processEvent(eventId: string, requestId?: string) {
     const event = await this.prisma.webhookEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new BadRequestException('Webhook event not found');
     const payload = event.payload as Record<string, unknown>;
-    return this.createOrderFromWebhook(event.restaurantId, event.provider as Channel, payload);
+    return this.createOrderFromWebhook(event.restaurantId, event.provider as Channel, payload, requestId);
   }
 
   private history(value: unknown) {
     return Array.isArray(value) ? value : [];
   }
 
-  private async createOrderFromWebhook(restaurantId: string, channel: Channel, payload: Record<string, unknown>) {
+  private async createOrderFromWebhook(restaurantId: string, channel: Channel, payload: Record<string, unknown>, requestId?: string) {
     const outletId = this.readString(payload.outletId);
     if (!outletId) throw new BadRequestException('outletId is required');
     const outlet = await this.prisma.outlet.findFirst({
@@ -184,7 +217,7 @@ export class WebhooksService {
       include: { outlet: { select: { name: true, city: true } } }
     });
     const order = this.serializeOrder(created);
-    this.operations.emitOrderCreated({ restaurantId, order });
+    this.operations.emitOrderCreated({ restaurantId, order, requestId });
     await this.prisma.analyticsEvent.create({
       data: {
         restaurantId,

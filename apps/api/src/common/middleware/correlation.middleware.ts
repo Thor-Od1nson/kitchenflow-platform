@@ -17,10 +17,14 @@ export class CorrelationMiddleware implements NestMiddleware {
 
   use(request: RequestWithContext, response: ResponseLike, next: NextFunction) {
     const startedAt = Date.now();
-    const incoming = request.headers['x-correlation-id'];
-    const correlationId = Array.isArray(incoming) ? incoming[0] : incoming;
-    request.correlationId = correlationId || randomUUID();
-    response.setHeader('x-correlation-id', request.correlationId);
+    const requestHeader = request.headers['x-request-id'];
+    const correlationHeader = request.headers['x-correlation-id'];
+    const incomingRequestId = Array.isArray(requestHeader) ? requestHeader[0] : requestHeader;
+    const incomingCorrelationId = Array.isArray(correlationHeader) ? correlationHeader[0] : correlationHeader;
+    request.requestId = incomingRequestId || incomingCorrelationId || randomUUID();
+    request.correlationId = request.requestId;
+    response.setHeader('x-request-id', request.requestId);
+    response.setHeader('x-correlation-id', request.requestId);
 
     response.on('finish', () => {
       this.observability.recordRequest({
@@ -28,7 +32,10 @@ export class CorrelationMiddleware implements NestMiddleware {
         path: request.originalUrl,
         statusCode: response.statusCode,
         durationMs: Date.now() - startedAt,
-        correlationId: request.correlationId
+        requestId: request.requestId,
+        userId: request.user?.userId,
+        role: request.user?.role,
+        route: request.route?.path
       });
     });
 

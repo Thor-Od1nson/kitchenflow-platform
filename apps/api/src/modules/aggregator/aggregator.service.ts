@@ -16,7 +16,7 @@ export class AggregatorService {
     private readonly queues: QueuesService
   ) {}
 
-  async simulate(restaurantId: string, options: { count: number; failureRate: number }) {
+  async simulate(restaurantId: string, options: { count: number; failureRate: number; requestId?: string }) {
     const [outlets, menuItems] = await Promise.all([
       this.prisma.outlet.findMany({ where: { restaurantId }, take: 20 }),
       this.prisma.menuItem.findMany({ where: { restaurantId, available: true }, take: 20 })
@@ -69,7 +69,7 @@ export class AggregatorService {
         include: { outlet: { select: { name: true, city: true } } }
       });
       const order = this.serializeOrder(created);
-      this.operations.emitOrderCreated({ restaurantId, order });
+      this.operations.emitOrderCreated({ requestId: options.requestId, restaurantId, order });
       await this.prisma.analyticsEvent.create({
         data: {
           restaurantId,
@@ -78,20 +78,20 @@ export class AggregatorService {
           metrics: { orderId: created.id, publicId: created.publicId, detail: `${channel} order ingested` }
         }
       });
-      await this.scheduleLifecycle(restaurantId, created.id);
+      await this.scheduleLifecycle(restaurantId, created.id, options.requestId);
       results.push(order);
     }
 
-    await this.queues.enqueueSlaScan(restaurantId, 30_000);
-    await this.queues.enqueueOrderAging(restaurantId, 45_000);
+    await this.queues.enqueueSlaScan(restaurantId, 30_000, options.requestId);
+    await this.queues.enqueueOrderAging(restaurantId, 45_000, options.requestId);
     return { created: results.length, failed, orders: results };
   }
 
-  private async scheduleLifecycle(restaurantId: string, orderId: string) {
-    await this.queues.enqueueOrderStatus(restaurantId, orderId, 'accepted', 8_000);
-    await this.queues.enqueueOrderStatus(restaurantId, orderId, 'preparing', 18_000);
-    await this.queues.enqueueOrderStatus(restaurantId, orderId, 'dispatched', 35_000);
-    await this.queues.enqueueOrderStatus(restaurantId, orderId, Math.random() > 0.08 ? 'delivered' : 'cancelled', 55_000);
+  private async scheduleLifecycle(restaurantId: string, orderId: string, requestId?: string) {
+    await this.queues.enqueueOrderStatus(restaurantId, orderId, 'accepted', 8_000, requestId);
+    await this.queues.enqueueOrderStatus(restaurantId, orderId, 'preparing', 18_000, requestId);
+    await this.queues.enqueueOrderStatus(restaurantId, orderId, 'dispatched', 35_000, requestId);
+    await this.queues.enqueueOrderStatus(restaurantId, orderId, Math.random() > 0.08 ? 'delivered' : 'cancelled', 55_000, requestId);
   }
 
   private pick<T>(items: T[], index: number) {
