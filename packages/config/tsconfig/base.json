@@ -7,7 +7,6 @@
     "resolveJsonModule": true,
     "allowJs": false,
     "isolatedModules": true,
-    "baseUrl": ".",
-    "ignoreDeprecations": "6.0"
+    "baseUrl": "."
   }
 }
