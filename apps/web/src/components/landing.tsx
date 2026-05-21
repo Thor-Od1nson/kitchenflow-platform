@@ -1,9 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-
 import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle2, PlugZap, ShieldCheck, Sparkles, Utensils } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Link, PlugZap, ShieldCheck, Sparkles, Utensils } from 'lucide-react';
 import { Button, Card } from '@kitchenflow/ui';
 import { integrations, kpis, orders, revenueSeries } from '@/lib/data';
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
