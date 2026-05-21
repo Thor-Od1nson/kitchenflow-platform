@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { motion } from 'framer-motion';
 import { ArrowRight, CheckCircle2, PlugZap, ShieldCheck, Sparkles, Utensils } from 'lucide-react';
 import { Button, Card } from '@kitchenflow/ui';
@@ -43,9 +45,14 @@ export function LandingPage() {
             <a href="#integrations">Integrations</a>
             <a href="#pricing">Pricing</a>
           </div>
-          <Button variant="secondary" className="bg-white/10 text-white hover:bg-white/15">
-            Open dashboard
-          </Button>
+          <Link href="/login">
+            <Button
+              variant="secondary"
+              className="bg-white/10 text-white hover:bg-white/15"
+            >
+              Login
+            </Button>
+          </Link>
         </nav>
 
         <div className="relative mx-auto grid max-w-7xl gap-12 px-6 pb-16 pt-16 lg:grid-cols-[.95fr_1.05fr] lg:pb-24 lg:pt-24">
