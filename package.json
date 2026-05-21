@@ -12,7 +12,8 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "vercel-build": "pnpm --filter @kitchenflow/web build"
   },
   "devDependencies": {
     "@kitchenflow/config": "workspace:*",
