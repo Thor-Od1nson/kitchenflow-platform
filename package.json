@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "pnpm --filter @kitchenflow/web dev",
     "dev:api": "pnpm --filter @kitchenflow/api start:dev",
