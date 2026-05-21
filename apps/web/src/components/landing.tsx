@@ -1,7 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle2, Link, PlugZap, ShieldCheck, Sparkles, Utensils } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, CheckCircle2, PlugZap, ShieldCheck, Sparkles, Utensils } from 'lucide-react';
 import { Button, Card } from '@kitchenflow/ui';
 import { integrations, kpis, orders, revenueSeries } from '@/lib/data';
 import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
@@ -43,13 +44,11 @@ export function LandingPage() {
             <a href="#integrations">Integrations</a>
             <a href="#pricing">Pricing</a>
           </div>
-          <Link href="/login">
-            <Button
-              variant="secondary"
-              className="bg-white/10 text-white hover:bg-white/15"
-            >
-              Login
-            </Button>
+          <Link
+            href="/login"
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-line bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-royal"
+          >
+            Login
           </Link>
         </nav>
 

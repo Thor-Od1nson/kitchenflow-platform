@@ -2,8 +2,14 @@
   "name": "@kitchenflow/web",
   "private": true,
   "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": "20.x",
+    "pnpm": "9.15.0"
+  },
   "scripts": {
     "dev": "next dev --port 3000",
+    "prebuild": "pnpm --filter @kitchenflow/types build",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
