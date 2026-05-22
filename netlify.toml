@@ -1,0 +1,8 @@
+[build]
+base = "apps/web"
+command = "cd ../.. && pnpm install && pnpm --filter @kitchenflow/web build"
+publish = ".next"
+
+[build.environment]
+NODE_VERSION = "20"
+PNPM_VERSION = "9.15.0"
