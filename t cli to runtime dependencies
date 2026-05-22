@@ -1,0 +1,31 @@
+warning: in the working copy of 'apps/api/package.json', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/apps/api/package.json b/apps/api/package.json[m
+[1mindex 72dd08b..56aad25 100644[m
+[1m--- a/apps/api/package.json[m
+[1m+++ b/apps/api/package.json[m
+[36m@@ -6,7 +6,7 @@[m
+     "start": "node dist/main.js",[m
+     "start:dev": "nest start --watch",[m
+     "prestart:dev": "npm run build --workspace=@kitchenflow/types",[m
+[31m-    "build": "../../node_modules/.bin/nest build --type-check false",[m
+[32m+[m[32m    "build": "nest build --type-check false",[m
+     "prebuild": "npm run build --workspace=@kitchenflow/types",[m
+     "lint": "eslint src --ext .ts",[m
+     "test:phase5": "node --test test/*.test.js",[m
+[36m@@ -30,6 +30,7 @@[m
+     "@nestjs/platform-socket.io": "^10.4.7",[m
+     "@nestjs/throttler": "^6.2.1",[m
+     "@nestjs/websockets": "^10.4.7",[m
+[32m+[m[32m    "@nestjs/cli": "^10.4.9",[m
+     "@kitchenflow/types": "*",[m
+     "@prisma/client": "^5.22.0",[m
+     "bcryptjs": "^2.4.3",[m
+[36m@@ -45,7 +46,7 @@[m
+     "socket.io": "^4.8.3"[m
+   },[m
+   "devDependencies": {[m
+[31m-    "@nestjs/cli": "^10.4.9",[m
+[32m+[m
+     "@nestjs/schematics": "^10.2.3",[m
+     "@nestjs/testing": "^10.4.7",[m
+     "@types/node": "^22.9.0",[m
