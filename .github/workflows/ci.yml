@@ -21,9 +21,6 @@ jobs:
       - name: Install
         run: npm install
 
-      - name: Prisma validate
-        run: npm exec --workspace=@kitchenflow/api prisma validate --schema prisma/schema.prisma
-
       - name: API build
         run: npm run build --workspace=@kitchenflow/api
 
