@@ -6,7 +6,7 @@
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "prestart:dev": "npm run build --workspace=@kitchenflow/types",
-    "build": "nest build --type-check false",
+    "build": "npx nest build --type-check false",
     "prebuild": "npm run build --workspace=@kitchenflow/types",
     "lint": "eslint src --ext .ts",
     "test:phase5": "node --test test/*.test.js",
