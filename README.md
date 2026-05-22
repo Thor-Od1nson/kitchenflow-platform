@@ -17,9 +17,22 @@ Enterprise restaurant commerce infrastructure inspired by UrbanPiper, Toast, Str
 ## Local Development
 
 ```bash
-pnpm install
-pnpm dev
-pnpm dev:api
+npm install
+npm run dev
+npm run dev:api
 ```
 
 Copy `.env.example` files in each app before connecting PostgreSQL, Redis, and OAuth providers.
+
+## Vercel Frontend Deployment
+
+Use the repository root as the Vercel project root so npm can install all workspaces.
+
+- Install command: `npm install`
+- Build command: `npm run build --workspace=@kitchenflow/web`
+- Start command: `npm run start --workspace=@kitchenflow/web`
+- Node.js version: `20.x`
+
+Required frontend environment variables:
+
+- `NEXT_PUBLIC_API_URL`: Public URL of the KitchenFlow API, including `/v1`. Use `http://localhost:4000/v1` for local development.

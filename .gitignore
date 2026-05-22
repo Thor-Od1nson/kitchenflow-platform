@@ -10,6 +10,5 @@ dist
 !**/.env.development
 !**/.env.production
 coverage
-pnpm-lock.yaml
 
 .vercel
