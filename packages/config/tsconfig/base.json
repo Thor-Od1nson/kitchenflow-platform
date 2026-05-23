@@ -9,7 +9,6 @@
     "allowJs": false,
     "isolatedModules": true,
     "baseUrl": ".",
-    "moduleResolution": "node",
-    "ignoreDeprecations": "6.0"
+    "moduleResolution": "node"
   }
 }
