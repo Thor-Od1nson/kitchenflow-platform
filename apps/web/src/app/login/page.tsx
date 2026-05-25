@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AlertCircle, Loader2, LogIn, Utensils } from 'lucide-react';
 import { Button, Card, Input } from '@kitchenflow/ui';
 import { useAuth } from '@/components/auth/auth-provider';
+import { getApiErrorMessage } from '@/lib/api-client';
 
 export default function LoginPage() {
   const { login, isLoading } = useAuth();
@@ -24,8 +25,9 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(email, password);
-    } catch {
-      setError('Invalid email or password.');
+    } catch (authError) {
+      console.error('Caught auth error', authError);
+      setError(getApiErrorMessage(authError));
     } finally {
       setSubmitting(false);
     }

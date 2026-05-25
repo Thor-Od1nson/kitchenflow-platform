@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { usePathname, useRouter } from 'next/navigation';
 import type { AuthResponse, AuthTokens, AuthUser } from '@kitchenflow/types';
 import { authApi } from '@/lib/api-client';
-import { clearStoredTokens, getStoredTokens, persistTokens, subscribeToAuthStorage } from '@/lib/auth-storage';
+import { clearStoredTokens, getStoredTokens, persistTokens, persistUser, subscribeToAuthStorage } from '@/lib/auth-storage';
 import { canAccessRoute, getDefaultRouteByRole } from '@/lib/rbac-routes';
 import { useOpsStore } from '@/store/ops-store';
 
@@ -35,7 +35,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       accessToken: session.accessToken,
       refreshToken: session.refreshToken
     };
+    console.log('Parsed auth payload', { ...nextTokens, user: session.user });
     persistTokens(nextTokens);
+    persistUser(session.user);
     setTokens(nextTokens);
     setUser(session.user);
     hydratedOnce.current = true;

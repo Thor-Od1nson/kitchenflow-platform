@@ -4,7 +4,7 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { ApiErrorResponse, AuthResponse, AuthTokens } from '@kitchenflow/types';
 import { clearStoredTokens, getStoredTokens, persistTokens } from './auth-storage';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/v1';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/v1').replace(/\/$/, '');
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -29,8 +29,9 @@ function refreshTokens(refreshToken: string) {
   refreshPromise ??= axios
     .post<AuthResponse>(`${API_BASE_URL}/auth/refresh`, { refreshToken }, { headers: { 'x-request-id': nextRequestId() } })
     .then((response) => {
-      persistTokens(response.data);
-      return response.data;
+      const session = parseAuthResponse(response.data);
+      persistTokens(session);
+      return session;
     })
     .finally(() => {
       refreshPromise = null;
@@ -77,7 +78,10 @@ export const authApi = {
   async login(email: string, password: string) {
     const requestId = nextRequestId();
     const response = await axios.post<AuthResponse>(`${API_BASE_URL}/auth/login`, { email, password }, { headers: { 'x-request-id': requestId, 'x-correlation-id': requestId } });
-    return response.data;
+    console.log('Auth login API response', response.data);
+    const session = parseAuthResponse(response.data);
+    console.log('Parsed auth payload', session);
+    return session;
   },
   async me() {
     const response = await apiClient.get<AuthResponse['user']>('/auth/me');
@@ -91,3 +95,15 @@ export const authApi = {
     await axios.post(`${API_BASE_URL}/auth/logout`, { refreshToken }, { headers: { 'x-request-id': requestId, 'x-correlation-id': requestId } });
   }
 };
+
+function parseAuthResponse(payload: AuthResponse): AuthResponse {
+  if (!payload?.accessToken || !payload?.refreshToken || !payload?.user) {
+    throw new Error('Login response did not include accessToken, refreshToken, and user.');
+  }
+
+  return {
+    accessToken: payload.accessToken,
+    refreshToken: payload.refreshToken,
+    user: payload.user
+  };
+}
