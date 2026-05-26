@@ -14,6 +14,20 @@ import type { Role } from '@kitchenflow/types';
 import type { InventoryChangedEvent, OrderCreatedEvent, OrderStatusUpdatedEvent } from '@kitchenflow/types';
 import { ObservabilityService } from '../common/observability/observability.service';
 
+const DEFAULT_SOCKET_ORIGINS = ['http://localhost:3000', 'http://localhost:3002', 'https://kitchenflow-commerce.vercel.app'];
+
+function socketCorsOrigins() {
+  return [
+    ...new Set([
+      ...DEFAULT_SOCKET_ORIGINS,
+      ...(process.env.CORS_ORIGIN ?? '')
+        .split(',')
+        .map((origin) => origin.trim().replace(/\/$/, ''))
+        .filter(Boolean)
+    ])
+  ];
+}
+
 interface SocketAuthPayload {
   sub: string;
   restaurantId: string;
@@ -21,7 +35,7 @@ interface SocketAuthPayload {
 }
 
 @WebSocketGateway({
-  cors: { origin: process.env.CORS_ORIGIN?.split(',') ?? ['http://localhost:3000'], credentials: true },
+  cors: { origin: socketCorsOrigins(), credentials: true },
   namespace: 'operations'
 })
 export class OperationsGateway implements OnGatewayConnection, OnGatewayDisconnect {

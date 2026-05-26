@@ -8,7 +8,7 @@ export function validateEnv(config: Record<string, unknown>) {
   }
 
   const corsOrigin = typeof config.CORS_ORIGIN === 'string' ? config.CORS_ORIGIN : '';
-  if (process.env.NODE_ENV === 'production' && (!corsOrigin || corsOrigin.includes('*'))) {
+  if (process.env.NODE_ENV === 'production' && corsOrigin.includes('*')) {
     throw new Error('CORS_ORIGIN must be explicit in production.');
   }
 

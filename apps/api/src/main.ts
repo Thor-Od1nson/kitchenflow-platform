@@ -7,6 +7,25 @@ import { AppModule } from './app.module';
 import { ApiExceptionFilter } from './common/filters/api-exception.filter';
 import { ObservabilityService } from './common/observability/observability.service';
 
+const DEFAULT_CORS_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:3002',
+  'https://kitchenflow-commerce.vercel.app'
+];
+const CORS_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
+const CORS_ALLOWED_HEADERS = ['Content-Type', 'Authorization', 'x-request-id', 'x-correlation-id', 'Accept', 'Origin', 'X-Requested-With'];
+
+function normalizeOrigin(origin: string) {
+  return origin.replace(/\/$/, '');
+}
+
+function parseConfiguredOrigins(value?: string) {
+  return (value ?? '')
+    .split(',')
+    .map((origin) => normalizeOrigin(origin.trim()))
+    .filter(Boolean);
+}
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false
@@ -16,6 +35,57 @@ async function bootstrap() {
   const observability = app.get(ObservabilityService);
 
   const bodyLimit = config.get<string>('REQUEST_BODY_LIMIT') ?? '1mb';
+  const allowedOrigins = [
+    ...new Set([
+      ...DEFAULT_CORS_ORIGINS.map(normalizeOrigin),
+      ...parseConfiguredOrigins(config.get<string>('CORS_ORIGIN'))
+    ])
+  ];
+
+  const isAllowedOrigin = (origin?: string) => {
+    if (!origin) return true;
+    return allowedOrigins.includes(normalizeOrigin(origin));
+  };
+
+  app.use((request, response, next) => {
+    const origin = request.headers.origin;
+    const requestHeaders = request.headers['access-control-request-headers'];
+    const originValue = Array.isArray(origin) ? origin[0] : origin;
+    const requestedHeaderValue = Array.isArray(requestHeaders) ? requestHeaders.join(', ') : requestHeaders;
+    const isPreflight = request.method === 'OPTIONS';
+
+    if (originValue && isAllowedOrigin(originValue)) {
+      response.setHeader('Vary', 'Origin, Access-Control-Request-Headers');
+      response.setHeader('Access-Control-Allow-Origin', originValue);
+      response.setHeader('Access-Control-Allow-Credentials', 'true');
+      response.setHeader('Access-Control-Allow-Methods', CORS_METHODS.join(','));
+      response.setHeader('Access-Control-Allow-Headers', requestedHeaderValue || CORS_ALLOWED_HEADERS.join(','));
+      response.setHeader('Access-Control-Expose-Headers', 'x-request-id,x-correlation-id');
+    } else if (originValue) {
+      observability.warn('cors_origin_denied', {
+        module: 'bootstrap',
+        origin: originValue,
+        method: request.method,
+        path: request.originalUrl
+      });
+    }
+
+    if (isPreflight) {
+      observability.info('cors_preflight', {
+        module: 'bootstrap',
+        origin: originValue ?? 'none',
+        path: request.originalUrl,
+        allowed: !originValue || isAllowedOrigin(originValue),
+        requestedHeaders: requestedHeaderValue
+      });
+
+      response.statusCode = originValue && !isAllowedOrigin(originValue) ? 403 : 204;
+      response.end();
+      return;
+    }
+
+    next();
+  });
 
   app.useBodyParser('json', { limit: bodyLimit });
   app.useBodyParser('urlencoded', {
@@ -34,35 +104,24 @@ async function bootstrap() {
   app.useGlobalFilters(new ApiExceptionFilter(observability));
 
   app.enableCors({
-   origin: (origin, callback) => {
-    const allowed = [
-      'http://localhost:3000',
-      'http://localhost:3002',
-      'https://kitchenflow-commerce.vercel.app'
-    ];
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        return callback(null, true);
+      }
 
-    const configuredOrigins = (config.get<string>('CORS_ORIGIN') ?? '')
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
+      observability.warn('cors_origin_denied', {
+        module: 'bootstrap',
+        origin
+      });
 
-    const allAllowedOrigins = [...new Set([...allowed, ...configuredOrigins])];
-
-    if (!origin || allAllowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    observability.warn('cors_origin_denied', {
-      module: 'bootstrap',
-      origin
-    });
-
-    return callback(new Error('CORS origin denied'), false);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-});
+      return callback(null, false);
+    },
+    credentials: true,
+    methods: CORS_METHODS,
+    allowedHeaders: CORS_ALLOWED_HEADERS,
+    exposedHeaders: ['x-request-id', 'x-correlation-id'],
+    optionsSuccessStatus: 204
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

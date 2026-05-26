@@ -27,6 +27,12 @@ export class AuthService {
   async login(dto: LoginDto, correlationId?: string) {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+      this.observability.warn('auth_login_failed', {
+        module: 'auth',
+        requestId: correlationId,
+        email: dto.email,
+        reason: user ? 'invalid_password' : 'user_not_found'
+      });
       if (user) {
         await this.audit.record({
           restaurantId: user.restaurantId,
@@ -63,7 +69,17 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string, correlationId?: string) {
-    const payload = await this.verifyRefreshToken(refreshToken);
+    let payload: TokenPayload;
+    try {
+      payload = await this.verifyRefreshToken(refreshToken);
+    } catch (error) {
+      this.observability.warn('auth_refresh_failed', {
+        module: 'auth',
+        requestId: correlationId,
+        reason: error instanceof Error ? error.message : 'invalid_refresh_token'
+      });
+      throw error;
+    }
     const tokens = await this.prisma.refreshToken.findMany({
       where: {
         userId: payload.sub,
@@ -74,6 +90,13 @@ export class AuthService {
     });
     const matchingToken = await this.findMatchingRefreshToken(refreshToken, tokens);
     if (!matchingToken) {
+      this.observability.warn('auth_refresh_failed', {
+        module: 'auth',
+        requestId: correlationId,
+        userId: payload.sub,
+        role: payload.role,
+        reason: 'refresh_token_not_active'
+      });
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -150,6 +173,11 @@ export class AuthService {
       }
     });
     if (!user) {
+      this.observability.warn('auth_bootstrap_failed', {
+        module: 'auth',
+        userId,
+        reason: 'user_not_found'
+      });
       throw new UnauthorizedException('User not found');
     }
     return user;
