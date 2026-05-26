@@ -34,21 +34,35 @@ async function bootstrap() {
   app.useGlobalFilters(new ApiExceptionFilter(observability));
 
   app.enableCors({
-    origin: (origin, callback) => {
-      const allowed = (config.get<string>('CORS_ORIGIN') ?? 'http://localhost:3000')
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean);
+   origin: (origin, callback) => {
+    const allowed = [
+      'http://localhost:3000',
+      'http://localhost:3002',
+      'https://kitchenflow-commerce.vercel.app'
+    ];
 
-      if (!origin || allowed.includes(origin)) {
-        return callback(null, true);
-      }
+    const configuredOrigins = (config.get<string>('CORS_ORIGIN') ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
 
-      return callback(new Error('CORS origin denied'), false);
-    },
-    credentials: true
-  });
+    const allAllowedOrigins = [...new Set([...allowed, ...configuredOrigins])];
 
+    if (!origin || allAllowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    observability.warn('cors_origin_denied', {
+      module: 'bootstrap',
+      origin
+    });
+
+    return callback(new Error('CORS origin denied'), false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+});
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
