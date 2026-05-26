@@ -2,16 +2,16 @@
 
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { Check, ChevronDown, Search, X } from 'lucide-react';
+import { Check, ChevronDown, Sparkles, Search, X } from 'lucide-react';
 import { cn } from './cn';
 
 const button = cva(
-  'inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        primary: 'bg-ink text-panel shadow-soft hover:opacity-90 focus-visible:outline-royal',
-        secondary: 'border border-line bg-panel text-ink hover:bg-panel-muted',
+        primary: 'bg-royal text-slate-950 shadow-soft hover:bg-cyan focus-visible:outline-royal',
+        secondary: 'border border-line bg-panel/80 text-ink shadow-soft hover:border-royal/50 hover:bg-panel-muted',
         ghost: 'text-muted hover:bg-panel-muted hover:text-ink',
         danger: 'bg-rose-600 text-white hover:bg-rose-700'
       },
@@ -37,7 +37,7 @@ export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInp
   return (
     <input
       className={cn(
-        'h-10 w-full rounded-xl border border-line bg-panel px-3 text-sm text-ink outline-none transition placeholder:text-muted focus:border-royal focus:ring-4 focus:ring-blue-100/70 dark:focus:ring-blue-400/10',
+        'h-10 w-full rounded-xl border border-line bg-panel/80 px-3 text-sm text-ink outline-none transition placeholder:text-muted focus:border-royal focus:ring-4 focus:ring-royal/10',
         className,
       )}
       {...props}
@@ -55,7 +55,7 @@ export function SearchInput(props: React.InputHTMLAttributes<HTMLInputElement>) 
 }
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('rounded-2xl border border-line bg-panel shadow-soft', className)} {...props} />;
+  return <div className={cn('glass-panel rounded-xl border shadow-soft', className)} {...props} />;
 }
 
 export function Badge({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
@@ -71,7 +71,7 @@ export function Badge({ className, ...props }: React.HTMLAttributes<HTMLSpanElem
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-xl bg-panel-muted', className)} />;
+  return <div className={cn('animate-pulse rounded-xl bg-gradient-to-r from-panel-muted via-royal/10 to-panel-muted', className)} />;
 }
 
 export function Tabs({
@@ -84,14 +84,14 @@ export function Tabs({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="inline-flex rounded-xl border border-line bg-panel p-1">
+    <div className="inline-flex rounded-xl border border-line bg-panel/80 p-1 shadow-soft">
       {tabs.map((tab) => (
         <button
           key={tab}
           onClick={() => onChange(tab)}
           className={cn(
             'h-8 rounded-lg px-3 text-sm font-semibold transition',
-            value === tab ? 'bg-ink text-panel' : 'text-muted hover:bg-panel-muted hover:text-ink',
+            value === tab ? 'bg-royal text-slate-950 shadow-soft' : 'text-muted hover:bg-panel-muted hover:text-ink',
           )}
         >
           {tab}
@@ -109,7 +109,7 @@ export function Dropdown({
   options: string[];
 }) {
   return (
-    <button className="inline-flex h-10 items-center justify-between gap-3 rounded-xl border border-line bg-panel px-3 text-sm font-semibold text-ink transition hover:bg-panel-muted">
+    <button className="inline-flex h-10 items-center justify-between gap-3 rounded-xl border border-line bg-panel/80 px-3 text-sm font-semibold text-ink transition hover:border-royal/50 hover:bg-panel-muted">
       {label}
       <ChevronDown className="size-4 text-muted" />
       <span className="sr-only">{options.join(', ')}</span>
@@ -128,7 +128,7 @@ export function ModalFrame({
 }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-2xl border border-line bg-panel shadow-glow">
+      <div className="glass-panel w-full max-w-lg rounded-xl border shadow-soft">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="font-bold text-ink">{title}</h2>
           <button onClick={onClose} className="grid size-8 place-items-center rounded-lg hover:bg-panel-muted" aria-label="Close modal">
@@ -149,8 +149,8 @@ export function Toast({
   detail: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-line bg-panel p-4 shadow-soft">
-      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-600">
+    <div className="glass-panel flex items-start gap-3 rounded-2xl border p-4 shadow-soft">
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-royal/15 text-royal">
         <Check className="size-4" />
       </span>
       <div>
@@ -195,15 +195,136 @@ export function MetricCard({
   children?: React.ReactNode;
 }) {
   return (
-    <Card className="p-5">
+    <Card className="group relative overflow-hidden p-4 transition duration-200 hover:border-royal/35">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-muted">{label}</p>
-          <p className="mt-2 text-2xl font-bold tracking-tight text-ink">{value}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted">{label}</p>
+          <p className="mt-2 text-2xl font-black tracking-tight text-ink">{value}</p>
           <p className="mt-1 text-xs font-medium text-muted">{detail}</p>
         </div>
         {children}
       </div>
     </Card>
+  );
+}
+
+export function OperationalStatusChip({
+  label,
+  tone = 'neutral',
+  pulse
+}: {
+  label: string;
+  tone?: 'good' | 'warning' | 'critical' | 'neutral';
+  pulse?: boolean;
+}) {
+  const toneClass =
+    tone === 'critical'
+      ? 'border-rose-400/30 bg-rose-400/10 text-rose-200'
+      : tone === 'warning'
+        ? 'border-amber-400/30 bg-amber-400/10 text-amber-200'
+        : tone === 'good'
+          ? 'border-royal/30 bg-royal/10 text-royal'
+          : 'border-line bg-panel-muted text-muted';
+
+  return (
+    <span className={cn('inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold', toneClass)}>
+      <span className={cn('size-1.5 rounded-full bg-current', pulse ? 'live-pulse' : '')} />
+      {label}
+    </span>
+  );
+}
+
+export function SlaMeter({
+  label,
+  value,
+  detail,
+  tone = 'good'
+}: {
+  label: string;
+  value: number;
+  detail: string;
+  tone?: 'good' | 'warning' | 'critical';
+}) {
+  const barClass = tone === 'critical' ? 'from-rose-500 to-amber-300' : tone === 'warning' ? 'from-amber-400 to-royal' : 'from-royal to-cyan';
+
+  return (
+    <div className="rounded-xl border border-line bg-panel-muted/45 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-black text-ink">{label}</p>
+          <p className="mt-1 text-xs font-semibold text-muted">{detail}</p>
+        </div>
+        <span className="text-sm font-black text-ink">{value}%</span>
+      </div>
+      <div className="mt-3 h-2 rounded-full bg-panel">
+        <div className={cn('h-full rounded-full bg-gradient-to-r', barClass)} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      </div>
+    </div>
+  );
+}
+
+export function IntelligenceCard({
+  title,
+  detail,
+  meta,
+  tone = 'neutral'
+}: {
+  title: string;
+  detail: string;
+  meta: string;
+  tone?: 'good' | 'warning' | 'critical' | 'neutral';
+}) {
+  return (
+    <Card className="relative overflow-hidden p-4 transition duration-200 hover:border-royal/35">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-black text-ink">{title}</p>
+          <p className="mt-2 text-sm leading-6 text-muted">{detail}</p>
+        </div>
+        <OperationalStatusChip label={meta} tone={tone} />
+      </div>
+    </Card>
+  );
+}
+
+export function InsightBanner({
+  title,
+  detail,
+  action
+}: {
+  title: string;
+  detail: string;
+  action?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-royal/25 bg-royal/10 p-4 shadow-soft">
+      <div className="flex items-start gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-royal text-slate-950">
+          <Sparkles className="size-4" />
+        </span>
+        <div>
+          <p className="font-black text-ink">{title}</p>
+          <p className="mt-1 text-sm leading-6 text-muted">{detail}</p>
+          {action ? <p className="mt-3 text-xs font-bold uppercase tracking-wide text-royal">{action}</p> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ActivityStream({
+  items
+}: {
+  items: Array<{ time: string; detail: string; tone?: 'good' | 'warning' | 'critical' | 'neutral' }>;
+}) {
+  return (
+    <div className="space-y-3">
+      {items.map((item) => (
+        <div key={`${item.time}-${item.detail}`} className="flex gap-3 rounded-xl border border-line bg-panel-muted/45 p-3">
+          <OperationalStatusChip label={item.time} tone={item.tone ?? 'neutral'} />
+          <p className="min-w-0 text-sm font-semibold leading-6 text-ink">{item.detail}</p>
+        </div>
+      ))}
+    </div>
   );
 }

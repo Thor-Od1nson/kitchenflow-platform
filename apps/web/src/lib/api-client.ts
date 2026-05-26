@@ -78,9 +78,7 @@ export const authApi = {
   async login(email: string, password: string) {
     const requestId = nextRequestId();
     const response = await axios.post<AuthResponse>(`${API_BASE_URL}/auth/login`, { email, password }, { headers: { 'x-request-id': requestId, 'x-correlation-id': requestId } });
-    console.log('Auth login API response', response.data);
     const session = parseAuthResponse(response.data);
-    console.log('Parsed auth payload', session);
     return session;
   },
   async me() {

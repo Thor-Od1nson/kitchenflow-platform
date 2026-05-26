@@ -57,7 +57,7 @@ function readPersistedNotifications() {
 }
 
 export const useOpsStore = create<OpsStore>((set) => ({
-  darkMode: false,
+  darkMode: true,
   notifications: [],
   socketStatus: 'idle',
   lastRealtimeAt: null,
@@ -134,7 +134,7 @@ export const useOpsStore = create<OpsStore>((set) => ({
           ...orders[0],
           id: `ord_${Date.now()}`,
           publicId: `#LIVE-${Math.floor(Math.random() * 90000 + 10000)}`,
-          customerName: ['Nisha Rao', 'Dev Malhotra', 'Anika Sen'][Math.floor(Math.random() * 3)],
+          customerName: ['Hassan Karam', 'Layla Al Marri', 'Fahad Al Qahtani'][Math.floor(Math.random() * 3)],
           placedAt: 'just now',
           status: 'pending' as OrderStatus
         },

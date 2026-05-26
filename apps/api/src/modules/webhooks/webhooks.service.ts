@@ -210,7 +210,7 @@ export class WebhooksService {
         channel,
         customerName: this.readString(payload.customerName) ?? 'Aggregator customer',
         totalAmount,
-        currency: this.readString(payload.currency) ?? 'INR',
+        currency: this.readString(payload.currency) ?? 'AED',
         etaMinutes: Number(payload.etaMinutes ?? 25),
         payload: { ...payload, source: 'webhook', items: lines } as any
       },

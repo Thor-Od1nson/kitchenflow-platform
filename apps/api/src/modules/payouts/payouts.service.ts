@@ -2,12 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const commissionByChannel: Record<string, number> = {
-  swiggy: 0.22,
-  zomato: 0.21,
-  uber_eats: 0.24,
   deliveroo: 0.23,
   talabat: 0.2,
-  doordash: 0.25,
+  careem: 0.22,
+  noon_food: 0.21,
+  hungerstation: 0.2,
+  jahez: 0.19,
+  uber_eats: 0.24,
+  business_central: 0.02,
+  pos: 0.03,
   direct: 0.04
 };
 

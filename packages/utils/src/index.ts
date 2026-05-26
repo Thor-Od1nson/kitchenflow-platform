@@ -18,8 +18,8 @@ export const statusTone: Record<OrderStatus, string> = {
   cancelled: 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-800'
 };
 
-export function formatMoney(amount: number, currency = 'INR') {
-  return new Intl.NumberFormat('en-IN', {
+export function formatMoney(amount: number, currency = 'AED') {
+  return new Intl.NumberFormat('en-AE', {
     style: 'currency',
     currency,
     maximumFractionDigits: 0

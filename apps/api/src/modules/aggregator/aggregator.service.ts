@@ -5,8 +5,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { OperationsGateway } from '../../realtime/operations.gateway';
 import { QueuesService } from '../queues/queues.service';
 
-const providers: Channel[] = ['swiggy', 'zomato', 'uber_eats'];
-const customers = ['Aarav Sharma', 'Mira Iyer', 'Kabir Mehta', 'Nisha Rao', 'Dev Malhotra', 'Anika Sen'];
+const providers: Channel[] = ['deliveroo', 'talabat', 'careem', 'noon_food', 'hungerstation', 'jahez', 'uber_eats'];
+const customers = ['Hassan Karam', 'Omar Haddad', 'Layla Al Marri', 'Fahad Al Qahtani', 'Mariam Saleh', 'Reem Al Suwaidi'];
 
 @Injectable()
 export class AggregatorService {

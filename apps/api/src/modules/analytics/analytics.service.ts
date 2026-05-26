@@ -259,7 +259,7 @@ export class AnalyticsService {
       const breached = now.getTime() - order.createdAt.getTime() > order.etaMinutes * 60_000 && !['delivered', 'cancelled'].includes(order.status);
       if (breached) outlet.breaches += 1;
       byOutlet.set(order.outletId, outlet);
-      const hour = order.createdAt.toLocaleTimeString('en-IN', { hour: '2-digit', hour12: false });
+      const hour = order.createdAt.toLocaleTimeString('en-AE', { hour: '2-digit', hour12: false });
       const bucket = byHour.get(hour) ?? { orders: 0, cancellations: 0, breaches: 0 };
       bucket.orders += 1;
       if (order.status === 'cancelled') bucket.cancellations += 1;
@@ -302,7 +302,7 @@ export class AnalyticsService {
       day.setDate(weekStart.getDate() + index);
       const dayOrders = orders.filter((order) => order.createdAt.toDateString() === day.toDateString());
       return {
-        day: day.toLocaleDateString('en-IN', { weekday: 'short' }),
+        day: day.toLocaleDateString('en-AE', { weekday: 'short' }),
         revenue: dayOrders.reduce((sum, order) => sum + order.totalAmount, 0),
         orders: dayOrders.length
       };

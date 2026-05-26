@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { usePathname, useRouter } from 'next/navigation';
 import type { AuthResponse, AuthTokens, AuthUser } from '@kitchenflow/types';
 import { authApi } from '@/lib/api-client';
-import { clearStoredTokens, getStoredTokens, persistTokens, persistUser, subscribeToAuthStorage } from '@/lib/auth-storage';
+import { clearStoredTokens, getStoredTokens, getStoredUser, persistTokens, persistUser, subscribeToAuthStorage } from '@/lib/auth-storage';
 import { canAccessRoute, getDefaultRouteByRole } from '@/lib/rbac-routes';
 import { useOpsStore } from '@/store/ops-store';
 
@@ -19,6 +19,16 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 8_000;
+
+function withBootstrapTimeout<T>(promise: Promise<T>, fallback: T) {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => {
+      window.setTimeout(() => resolve(fallback), AUTH_BOOTSTRAP_TIMEOUT_MS);
+    })
+  ]);
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -35,7 +45,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       accessToken: session.accessToken,
       refreshToken: session.refreshToken
     };
-    console.log('Parsed auth payload', { ...nextTokens, user: session.user });
     persistTokens(nextTokens);
     persistUser(session.user);
     setTokens(nextTokens);
@@ -70,8 +79,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setTokens(stored);
+    const cachedUser = getStoredUser();
+    if (cachedUser) {
+      setUser(cachedUser);
+      hydratedOnce.current = true;
+      lastUserRef.current = cachedUser;
+    }
+
     try {
-      const currentUser = await authApi.me();
+      const currentUser = await withBootstrapTimeout(authApi.me(), cachedUser);
+      if (!currentUser) {
+        return null;
+      }
       if (hydratedOnce.current && lastUserRef.current && (lastUserRef.current.id !== currentUser.id || lastUserRef.current.role !== currentUser.role)) {
         addNotification({
           id: `session_changed:${currentUser.id}:${currentUser.role}`,
@@ -86,8 +105,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
       return currentUser;
     } catch {
+      if (cachedUser) {
+        return cachedUser;
+      }
       try {
-        const session = await refreshSession();
+        const session = await withBootstrapTimeout(refreshSession(), null);
         if (session?.user) {
           hydratedOnce.current = true;
           lastUserRef.current = session.user;
@@ -144,6 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (email: string, password: string) => {
       const session = await authApi.login(email, password);
       applySession(session);
+      setIsLoading(false);
       router.replace(getDefaultRouteByRole(session.user.role));
     },
     [applySession, router]

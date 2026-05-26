@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, Loader2, LogIn, Utensils } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, LogIn, ShieldCheck, Truck, Utensils, WalletCards } from 'lucide-react';
 import { Button, Card, Input } from '@kitchenflow/ui';
 import { useAuth } from '@/components/auth/auth-provider';
 import { getApiErrorMessage } from '@/lib/api-client';
@@ -26,7 +26,6 @@ export default function LoginPage() {
     try {
       await login(email, password);
     } catch (authError) {
-      console.error('Caught auth error', authError);
       setError(getApiErrorMessage(authError));
     } finally {
       setSubmitting(false);
@@ -34,27 +33,63 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-surface text-ink">
-      <div className="mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-5 py-10 lg:grid-cols-[1fr_420px]">
+    <main className="noise min-h-screen bg-surface text-ink">
+      <div className="mx-auto grid min-h-screen max-w-6xl items-center gap-8 px-5 py-8 lg:grid-cols-[1fr_430px]">
         <section className="max-w-2xl">
           <Link href="/" className="inline-flex items-center gap-3 text-lg font-black">
-            <span className="grid size-10 place-items-center rounded-xl bg-ink text-white">
+            <span className="grid size-10 place-items-center rounded-xl bg-royal text-slate-950 shadow-soft">
               <Utensils className="size-5" />
             </span>
             KitchenFlow
           </Link>
-          <h1 className="mt-10 text-4xl font-black tracking-tight text-ink md:text-6xl">
-            Sign in to restaurant operations.
+          <p className="mt-10 inline-flex rounded-full border border-royal/25 bg-royal/10 px-3 py-1 text-sm font-bold text-royal">
+            GCC enterprise operations access
+          </p>
+          <h1 className="mt-5 text-4xl font-black tracking-tight text-ink md:text-5xl">
+            One platform. Multiple aggregators. Unified operations.
           </h1>
           <p className="mt-5 max-w-xl text-base leading-7 text-muted md:text-lg">
-            Manage live orders, menus, integrations, analytics, inventory, and outlets from one workspace.
+            Sign in to manage delivery queues, aggregator health, SLA risk, outlet stock, payout reconciliation, and Business Central posting from one audited workspace.
           </p>
+          <div className="mt-7 grid max-w-xl gap-3 sm:grid-cols-3">
+            {[
+              ['99.97%', 'sync uptime'],
+              ['8', 'outlets'],
+              ['6', 'channels']
+            ].map(([value, label]) => (
+              <div key={label} className="rounded-2xl border border-line bg-panel/70 p-4">
+                <p className="text-2xl font-black">{value}</p>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-7 flex flex-wrap gap-2">
+            {['Deliveroo', 'Talabat', 'Careem', 'Noon Food', 'HungerStation', 'Business Central'].map((channel) => (
+              <span key={channel} className="rounded-full border border-line bg-panel-muted/70 px-3 py-1 text-xs font-bold text-muted">
+                {channel}
+              </span>
+            ))}
+          </div>
+          <div className="mt-7 grid max-w-xl gap-3 md:grid-cols-2">
+            {[
+              ['Ops manager', 'Queues, incidents, outlet SLA'],
+              ['Finance controller', 'Payouts, VAT, BC exports'],
+              ['Kitchen lead', 'Prep flow, stock, handoffs'],
+              ['Support analyst', 'Webhooks, retries, customer issues']
+            ].map(([role, scope]) => (
+              <div key={role} className="rounded-xl border border-line bg-panel/70 p-3">
+                <p className="font-black">{role}</p>
+                <p className="mt-1 text-xs font-semibold text-muted">{scope}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         <Card className="p-6">
           <div>
-            <p className="text-sm font-semibold text-muted">Welcome back</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight">Login</h2>
+            <p className="text-sm font-semibold text-royal">Welcome back</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight">Sign in to operations</h2>
+            <p className="mt-2 text-sm text-muted">HQ, finance, support, and outlet teams share one live GCC control layer.</p>
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
@@ -82,14 +117,14 @@ export default function LoginPage() {
             </label>
 
             {sessionExpired ? (
-              <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+              <div className="flex items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm font-semibold text-amber-200">
                 <AlertCircle className="size-4" />
                 Session expired. Sign in again to continue.
               </div>
             ) : null}
 
             {error ? (
-              <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
+              <div className="flex items-center gap-2 rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm font-semibold text-rose-200">
                 <AlertCircle className="size-4" />
                 {error}
               </div>
@@ -100,6 +135,24 @@ export default function LoginPage() {
               Sign in
             </Button>
           </form>
+          <div className="mt-6 grid gap-3 border-t border-line pt-5 text-sm text-muted">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="size-4 text-royal" />
+              Tenant-safe RBAC and audit logging
+            </div>
+            <div className="flex items-center gap-3">
+              <Truck className="size-4 text-royal" />
+              Live delivery and SLA telemetry
+            </div>
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="size-4 text-royal" />
+              Aggregator health across GCC channels
+            </div>
+            <div className="flex items-center gap-3">
+              <WalletCards className="size-4 text-royal" />
+              Settlement and Business Central posting visibility
+            </div>
+          </div>
         </Card>
       </div>
     </main>

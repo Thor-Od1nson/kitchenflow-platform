@@ -109,7 +109,7 @@ export class OrdersService {
         channel: dto.channel,
         customerName: dto.customerName,
         totalAmount,
-        currency: menuItems[0]?.currency ?? 'INR',
+        currency: menuItems[0]?.currency ?? 'AED',
         etaMinutes: dto.etaMinutes,
         payload: { items: lines, source: 'manual', clientMutationId: dto.clientMutationId }
       },

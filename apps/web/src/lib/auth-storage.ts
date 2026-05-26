@@ -40,6 +40,22 @@ export function persistUser(user: AuthUser) {
   window.localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
+export function getStoredUser(): AuthUser | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(USER_KEY) ?? 'null') as Partial<AuthUser> | null;
+    if (!parsed?.id || !parsed.email || !parsed.fullName || !parsed.role || !parsed.restaurantId || !parsed.restaurant) {
+      return null;
+    }
+    if (!['owner', 'manager', 'kitchen', 'support'].includes(parsed.role)) {
+      return null;
+    }
+    return parsed as AuthUser;
+  } catch {
+    return null;
+  }
+}
+
 export function clearStoredTokens() {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);

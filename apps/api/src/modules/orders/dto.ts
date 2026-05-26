@@ -2,13 +2,15 @@ import { IsArray, IsISO8601, IsIn, IsInt, IsOptional, IsString, Max, Min, Valida
 import { Type } from 'class-transformer';
 import type { Channel, OrderStatus } from '@kitchenflow/types';
 
+const supportedChannels = ['deliveroo', 'talabat', 'careem', 'noon_food', 'hungerstation', 'jahez', 'uber_eats', 'business_central', 'pos', 'direct'];
+
 export class ListOrdersDto {
   @IsOptional()
   @IsIn(['pending', 'accepted', 'preparing', 'dispatched', 'delivered', 'cancelled'])
   status?: OrderStatus;
 
   @IsOptional()
-  @IsIn(['swiggy', 'zomato', 'uber_eats', 'deliveroo', 'talabat', 'doordash', 'direct'])
+  @IsIn(supportedChannels)
   channel?: Channel;
 
   @IsOptional()
@@ -65,7 +67,7 @@ export class CreateOrderDto {
   @IsString()
   outletId!: string;
 
-  @IsIn(['swiggy', 'zomato', 'uber_eats', 'deliveroo', 'talabat', 'doordash', 'direct'])
+  @IsIn(supportedChannels)
   channel!: Channel;
 
   @IsString()

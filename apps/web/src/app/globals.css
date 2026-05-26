@@ -3,16 +3,16 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
-  --grid: rgba(23, 21, 75, .08);
-  --color-ink: 11 16 32;
-  --color-muted: 102 112 133;
-  --color-line: 230 233 241;
-  --color-surface: 247 248 251;
-  --color-panel: 255 255 255;
-  --color-panel-muted: 248 250 252;
-  --color-royal: 36 107 254;
-  --color-cyan: 40 215 239;
+  color-scheme: dark;
+  --grid: rgba(255, 255, 255, .055);
+  --color-ink: 238 245 241;
+  --color-muted: 137 153 148;
+  --color-line: 35 48 45;
+  --color-surface: 4 8 10;
+  --color-panel: 10 16 18;
+  --color-panel-muted: 15 25 26;
+  --color-royal: 39 232 166;
+  --color-cyan: 95 241 217;
 }
 
 * {
@@ -25,26 +25,77 @@ html {
 
 body {
   margin: 0;
-  background: rgb(var(--color-surface));
+  background:
+    radial-gradient(circle at 12% -10%, rgba(39, 232, 166, .07), transparent 34rem),
+    radial-gradient(circle at 88% 0%, rgba(95, 241, 217, .04), transparent 32rem),
+    linear-gradient(180deg, #06100f 0%, rgb(var(--color-surface)) 34rem);
   color: rgb(var(--color-ink));
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 .noise {
-  background-image: radial-gradient(circle at 1px 1px, var(--grid) 1px, transparent 0);
-  background-size: 28px 28px;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 44px 44px;
 }
 
-.dark body {
-  --grid: rgba(255, 255, 255, .08);
-  --color-ink: 248 250 252;
-  --color-muted: 148 163 184;
-  --color-line: 51 65 85;
-  --color-surface: 8 11 20;
-  --color-panel: 13 17 28;
-  --color-panel-muted: 21 27 41;
-  --color-royal: 96 165 250;
-  --color-cyan: 34 211 238;
+body::selection {
+  background: rgba(39, 232, 166, .28);
+  color: rgb(var(--color-ink));
+}
+
+.light body {
+  color-scheme: light;
+  --grid: rgba(11, 16, 32, .07);
+  --color-ink: 11 16 32;
+  --color-muted: 91 106 113;
+  --color-line: 220 229 226;
+  --color-surface: 245 248 247;
+  --color-panel: 255 255 255;
+  --color-panel-muted: 240 245 243;
+  --color-royal: 0 142 104;
+  --color-cyan: 0 172 155;
   background: rgb(var(--color-surface));
   color: rgb(var(--color-ink));
+}
+
+.glass-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018)),
+    rgb(var(--color-panel) / .92);
+  border-color: rgb(var(--color-line) / .92);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .26);
+}
+
+.live-pulse {
+  position: relative;
+}
+
+.live-pulse::after {
+  animation: live-ping 1.8s cubic-bezier(0, 0, .2, 1) infinite;
+  background: currentColor;
+  border-radius: 9999px;
+  content: "";
+  inset: -4px;
+  opacity: .24;
+  position: absolute;
+}
+
+.activity-shimmer {
+  background: linear-gradient(90deg, transparent, rgb(var(--color-royal) / .12), transparent);
+  background-size: 220% 100%;
+  animation: activity-shimmer 2.8s ease-in-out infinite;
+}
+
+@keyframes live-ping {
+  75%, 100% {
+    opacity: 0;
+    transform: scale(2.1);
+  }
+}
+
+@keyframes activity-shimmer {
+  0% { background-position: 220% 0; }
+  100% { background-position: -220% 0; }
 }

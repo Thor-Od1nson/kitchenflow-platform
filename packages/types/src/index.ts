@@ -40,11 +40,21 @@ export type OrderStatus =
   | 'delivered'
   | 'cancelled';
 
-export type Channel = 'swiggy' | 'zomato' | 'uber_eats' | 'deliveroo' | 'talabat' | 'doordash' | 'direct';
+export type Channel =
+  | 'deliveroo'
+  | 'talabat'
+  | 'careem'
+  | 'noon_food'
+  | 'hungerstation'
+  | 'jahez'
+  | 'uber_eats'
+  | 'business_central'
+  | 'pos'
+  | 'direct';
 
 export interface Money {
   amount: number;
-  currency: 'INR' | 'USD' | 'AED' | 'GBP';
+  currency: 'AED' | 'SAR' | 'QAR' | 'BHD' | 'USD' | 'GBP';
 }
 
 export interface OrderLine {
