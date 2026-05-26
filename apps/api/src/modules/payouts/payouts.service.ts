@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { normalizeOutletName, normalizeProvider, normalizePublicId } from '../../common/operational-normalization';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const commissionByChannel: Record<string, number> = {
@@ -28,15 +29,17 @@ export class PayoutsService {
     let created = 0;
     let updated = 0;
     for (const order of delivered) {
-      const commission = commissionByChannel[order.channel] ?? 0.18;
+      const channel = normalizeProvider(order.channel);
+      const publicId = normalizePublicId(order.publicId, order.outlet.name);
+      const commission = commissionByChannel[channel] ?? 0.18;
       const expectedPayout = Math.round(order.totalAmount * (1 - commission));
-      const settlementDueAt = new Date(order.updatedAt.getTime() + this.settlementDelayDays(order.channel) * 24 * 60 * 60 * 1000);
+      const settlementDueAt = new Date(order.updatedAt.getTime() + this.settlementDelayDays(channel) * 24 * 60 * 60 * 1000);
       const shouldSettle = settlementDueAt.getTime() <= Date.now();
-      const actualPayout = shouldSettle ? expectedPayout + this.deterministicVariance(order.publicId) : null;
+      const actualPayout = shouldSettle ? expectedPayout + this.deterministicVariance(publicId) : null;
       const varianceAmount = actualPayout === null ? 0 : actualPayout - expectedPayout;
       const status = !shouldSettle ? 'pending' : Math.abs(varianceAmount) > 25 ? 'variance' : 'matched';
       const row = await this.prisma.payoutLedger.upsert({
-        where: { restaurantId_publicId_channel: { restaurantId, publicId: order.publicId, channel: order.channel } },
+        where: { restaurantId_publicId_channel: { restaurantId, publicId, channel } },
         update: {
           expectedPayout,
           actualPayout,
@@ -48,10 +51,10 @@ export class PayoutsService {
         create: {
           restaurantId,
           orderId: order.id,
-          publicId: order.publicId,
+          publicId,
           outletId: order.outletId,
-          outletName: order.outlet.name,
-          channel: order.channel,
+          outletName: normalizeOutletName(order.outlet.name),
+          channel,
           grossAmount: order.totalAmount,
           expectedPayout,
           actualPayout,
@@ -85,7 +88,16 @@ export class PayoutsService {
       }),
       { gross: 0, expected: 0, actual: 0, variance: 0, pending: 0, variances: 0 }
     );
-    return { generatedAt: new Date().toISOString(), totals, rows };
+    return {
+      generatedAt: new Date().toISOString(),
+      totals,
+      rows: rows.map((row) => ({
+        ...row,
+        publicId: normalizePublicId(row.publicId, row.outletName ?? ''),
+        outletName: row.outletName ? normalizeOutletName(row.outletName) : row.outletName,
+        channel: normalizeProvider(row.channel)
+      }))
+    };
   }
 
   private settlementDelayDays(channel: string) {

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { InventoryActivity, InventoryItem } from '@kitchenflow/types';
 import { AuditService } from '../../common/audit/audit.service';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
+import { normalizeCity, normalizeOperationalText, normalizeOutletName } from '../../common/operational-normalization';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OperationsGateway } from '../../realtime/operations.gateway';
 import { AdjustInventoryDto } from './dto';
@@ -44,7 +45,7 @@ export class InventoryService {
     ]);
 
     return {
-      outlet,
+      outlet: { ...outlet, name: normalizeOutletName(outlet.name), city: normalizeCity(outlet.city) },
       items: items.map((item) => this.serializeItem(item)),
       activity: activity.map((item) => this.serializeActivity(item))
     };
@@ -151,7 +152,7 @@ export class InventoryService {
       id: item.id,
       outletId: item.outletId,
       sku: item.sku,
-      name: item.name,
+      name: normalizeOperationalText(item.name),
       unit: item.unit,
       quantity,
       reorderAt,
@@ -175,7 +176,7 @@ export class InventoryService {
       id: item.id,
       outletId: item.outletId,
       sku: item.sku,
-      name: item.name,
+      name: normalizeOperationalText(item.name),
       delta: Number(item.delta),
       reason: item.reason,
       quantityAfter: Number(item.quantityAfter),

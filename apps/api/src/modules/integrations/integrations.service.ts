@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { normalizeProvider } from '../../common/operational-normalization';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -12,8 +13,8 @@ export class IntegrationsService {
     });
     return integrations.map((integration) => ({
       id: integration.id,
-      provider: integration.provider,
-      label: this.labelProvider(integration.provider),
+      provider: normalizeProvider(integration.provider),
+      label: this.labelProvider(normalizeProvider(integration.provider)),
       status: integration.status,
       lastSyncAt: integration.lastSyncAt?.toISOString() ?? null,
       lastSync: integration.lastSyncAt ? this.relativeTime(integration.lastSyncAt) : 'never',
@@ -23,7 +24,7 @@ export class IntegrationsService {
   }
 
   test(provider: string) {
-    return { provider, reachable: true, latencyMs: 142, checkedAt: new Date().toISOString() };
+    return { provider: normalizeProvider(provider), reachable: true, latencyMs: 142, checkedAt: new Date().toISOString() };
   }
 
   private labelProvider(provider: string) {

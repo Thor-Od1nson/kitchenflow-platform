@@ -61,9 +61,9 @@ async function upsertUser({ email, fullName, role, restaurantId, passwordHash })
 async function main() {
   const passwordHash = await bcrypt.hash('Password123!', 12);
   const restaurant = await prisma.restaurant.upsert({
-    where: { slug: 'demo-restaurant' },
-    update: { name: 'KitchenFlow GCC Brands', plan: 'enterprise' },
-    create: { name: 'KitchenFlow GCC Brands', slug: 'demo-restaurant', plan: 'enterprise' }
+    where: { slug: 'gcc-operations-cluster' },
+    update: { name: 'GCC Operations Cluster', plan: 'enterprise' },
+    create: { name: 'GCC Operations Cluster', slug: 'gcc-operations-cluster', plan: 'enterprise' }
   });
 
   await prisma.refreshToken.deleteMany({ where: { user: { restaurantId: restaurant.id } } });
@@ -79,22 +79,22 @@ async function main() {
   await prisma.outlet.deleteMany({ where: { restaurantId: restaurant.id } });
 
   await Promise.all([
-    upsertUser({ email: 'owner@kitchenflow.dev', fullName: 'Reem Al Suwaidi', role: 'owner', restaurantId: restaurant.id, passwordHash }),
-    upsertUser({ email: 'manager@kitchenflow.dev', fullName: 'Omar Haddad', role: 'manager', restaurantId: restaurant.id, passwordHash }),
-    upsertUser({ email: 'kitchen@kitchenflow.dev', fullName: 'Khaled Al Shamsi', role: 'kitchen', restaurantId: restaurant.id, passwordHash }),
-    upsertUser({ email: 'support@kitchenflow.dev', fullName: 'Mariam Saleh', role: 'support', restaurantId: restaurant.id, passwordHash })
+    upsertUser({ email: 'regional.director@kitchenflow.dev', fullName: 'Mariam Al Suwaidi', role: 'owner', restaurantId: restaurant.id, passwordHash }),
+    upsertUser({ email: 'operations.supervisor@kitchenflow.dev', fullName: 'Omar Al Fahad', role: 'manager', restaurantId: restaurant.id, passwordHash }),
+    upsertUser({ email: 'aggregator.desk@kitchenflow.dev', fullName: 'Khalid Al Nahyan', role: 'kitchen', restaurantId: restaurant.id, passwordHash }),
+    upsertUser({ email: 'revenue.operations@kitchenflow.dev', fullName: 'Layla Hassan', role: 'support', restaurantId: restaurant.id, passwordHash })
   ]);
 
   const outlets = await Promise.all(
     [
-      ['Dubai Marina', 'Dubai'],
-      ['JLT', 'Dubai'],
-      ['Business Bay', 'Dubai'],
-      ['Abu Dhabi Yas', 'Abu Dhabi'],
-      ['Riyadh Olaya', 'Riyadh'],
-      ['Jeddah Corniche', 'Jeddah'],
-      ['Doha West Bay', 'Doha'],
-      ['Manama Seef', 'Manama']
+      ['Marina Central Kitchen', 'Dubai Marina'],
+      ['JLT Dispatch Center', 'JLT'],
+      ['Business Bay Operations Hub', 'Business Bay'],
+      ['Yas Operations Hub', 'Abu Dhabi Yas'],
+      ['Olaya Fulfillment Hub', 'Riyadh Olaya'],
+      ['Jeddah Corniche Dispatch Center', 'Jeddah Corniche'],
+      ['West Bay Dispatch Center', 'Doha West Bay'],
+      ['Kuwait City Marina Kitchen', 'Kuwait City Marina']
     ].map(([name, city]) =>
       prisma.outlet.create({
         data: { restaurantId: restaurant.id, name, city, timezone: 'Asia/Dubai' }

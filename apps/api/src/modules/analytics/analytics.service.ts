@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { OperationalActivity } from '@kitchenflow/types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ObservabilityService } from '../../common/observability/observability.service';
+import { normalizeCity, normalizeOperationalText, normalizeOutletName, normalizeProvider } from '../../common/operational-normalization';
 
 @Injectable()
 export class AnalyticsService {
@@ -104,7 +105,7 @@ export class AnalyticsService {
       orderStatus: this.countByStatus(todayOrders.map((order) => order.status)),
       revenueSeries: this.buildRevenueSeries(weekOrders, weekStart),
       channelBreakdown: channelGroups.map((group) => ({
-        channel: group.channel,
+        channel: normalizeProvider(group.channel),
         orders: group._count,
         revenue: group._sum.totalAmount ?? 0
       })),
@@ -112,8 +113,8 @@ export class AnalyticsService {
         const outlet: any = outletLookup.get(group.outletId);
         return {
           outletId: group.outletId,
-          outlet: outlet?.name ?? 'Unknown outlet',
-          city: outlet?.city ?? '',
+          outlet: outlet?.name ? normalizeOutletName(outlet.name) : 'Unknown outlet',
+          city: outlet?.city ? normalizeCity(outlet.city) : '',
           orders: group._count,
           revenue: group._sum.totalAmount ?? 0,
           uptime: this.calculateOutletUptime(group.outletId, integrationGroups)
@@ -132,7 +133,7 @@ export class AnalyticsService {
         const gross = row._sum.grossAmount ?? 0;
         const expectedPayout = row._sum.expectedPayout ?? 0;
         return {
-          channel: row.channel,
+          channel: normalizeProvider(row.channel),
           gross,
           expectedPayout,
           marginPercent: gross ? Number((((gross - expectedPayout) / gross) * 100).toFixed(1)) : 0
@@ -148,9 +149,9 @@ export class AnalyticsService {
         .map((item) => ({
           id: item.id,
           outletId: item.outletId,
-          outletName: item.outlet.name,
+          outletName: normalizeOutletName(item.outlet.name),
           sku: item.sku,
-          name: item.name,
+        name: normalizeOperationalText(item.name),
           unit: item.unit,
           quantity: Number(item.quantity),
           reorderAt: Number(item.reorderAt),
@@ -176,10 +177,10 @@ export class AnalyticsService {
         id: event.id,
         type,
         title: this.activityTitle(type),
-        detail: String(metrics.detail ?? dimensions.detail ?? this.activityTitle(type)),
+        detail: normalizeOperationalText(String(metrics.detail ?? dimensions.detail ?? this.activityTitle(type))),
         tone: this.activityTone(type),
         outletId: typeof dimensions.outletId === 'string' ? dimensions.outletId : undefined,
-        outletName: typeof dimensions.outlet === 'string' ? dimensions.outlet : undefined,
+        outletName: typeof dimensions.outlet === 'string' ? normalizeOutletName(dimensions.outlet) : undefined,
         actorId: typeof dimensions.actorId === 'string' ? dimensions.actorId : undefined,
         occurredAt: event.occurredAt.toISOString()
       };
@@ -213,8 +214,8 @@ export class AnalyticsService {
       const breaches = outletOrders.filter((order) => now.getTime() - order.createdAt.getTime() > order.etaMinutes * 60_000).length;
       return {
         outletId: outlet.id,
-        outlet: outlet.name,
-        city: outlet.city,
+        outlet: normalizeOutletName(outlet.name),
+        city: normalizeCity(outlet.city),
         activeOrders: outletOrders.length,
         slaBreaches: breaches,
         status: breaches > 2 ? 'critical' : outletOrders.length > 8 || breaches > 0 ? 'strained' : 'online'
@@ -250,7 +251,7 @@ export class AnalyticsService {
     const byOutlet = new Map<string, { outlet: string; activeOrders: number; totalMinutes: number; completed: number; breaches: number }>();
     const byHour = new Map<string, { orders: number; cancellations: number; breaches: number }>();
     for (const order of orders) {
-      const outlet = byOutlet.get(order.outletId) ?? { outlet: order.outlet.name, activeOrders: 0, totalMinutes: 0, completed: 0, breaches: 0 };
+      const outlet = byOutlet.get(order.outletId) ?? { outlet: normalizeOutletName(order.outlet.name), activeOrders: 0, totalMinutes: 0, completed: 0, breaches: 0 };
       if (!['delivered', 'cancelled'].includes(order.status)) outlet.activeOrders += 1;
       if (order.deliveredAt) {
         outlet.totalMinutes += Math.round((order.deliveredAt.getTime() - order.createdAt.getTime()) / 60_000);

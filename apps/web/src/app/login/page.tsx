@@ -10,7 +10,7 @@ import { getApiErrorMessage } from '@/lib/api-client';
 export default function LoginPage() {
   const { login, isLoading } = useAuth();
   const [sessionExpired, setSessionExpired] = useState(false);
-  const [email, setEmail] = useState('owner@kitchenflow.dev');
+  const [email, setEmail] = useState('regional.director@kitchenflow.dev');
   const [password, setPassword] = useState('Password123!');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);

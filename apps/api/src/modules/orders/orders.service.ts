@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { Channel, Money, Order, OrderStatus } from '@kitchenflow/types';
 import { AuditService } from '../../common/audit/audit.service';
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
+import { normalizeCity, normalizeCurrency, normalizeCustomerName, normalizeOperationalText, normalizeOutletName, normalizeProvider, normalizePublicId, orderPrefixForLocation } from '../../common/operational-normalization';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OperationsGateway } from '../../realtime/operations.gateway';
 import { CreateOrderDto, ListOrdersDto } from './dto';
@@ -239,7 +240,7 @@ export class OrdersService {
   }
 
   private createPublicId(city: string) {
-    const prefix = city.slice(0, 3).toUpperCase();
+    const prefix = orderPrefixForLocation(city);
     return `#${prefix}-${Math.floor(10000 + Math.random() * 90000)}`;
   }
 
@@ -265,17 +266,20 @@ export class OrdersService {
     outlet: { name: string; city: string };
   }): Order {
     const payload = order.payload as { items?: Array<{ id: string; name: string; quantity: number; price: number; modifiers?: string[] }> };
+    const currency = normalizeCurrency(order.currency) as Money['currency'];
+    const outletName = normalizeOutletName(order.outlet.name);
+    const outletCity = normalizeCity(order.outlet.city);
     return {
       id: order.id,
-      publicId: order.publicId,
+      publicId: normalizePublicId(order.publicId, outletCity || outletName),
       restaurantId: order.restaurantId,
       outletId: order.outletId,
-      outletName: order.outlet.name,
-      outletCity: order.outlet.city,
-      channel: order.channel as Channel,
+      outletName,
+      outletCity,
+      channel: normalizeProvider(order.channel) as Channel,
       status: order.status,
-      customerName: order.customerName,
-      total: { amount: order.totalAmount, currency: order.currency as Money['currency'] },
+      customerName: normalizeCustomerName(order.customerName),
+      total: { amount: order.totalAmount, currency },
       placedAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
       ...this.statusTimestamps(order),
@@ -283,9 +287,9 @@ export class OrdersService {
       items:
         payload.items?.map((item, index) => ({
           id: item.id ?? `${order.id}-${index}`,
-          name: item.name,
+          name: normalizeOperationalText(item.name),
           quantity: item.quantity,
-          price: { amount: item.price, currency: order.currency as Money['currency'] },
+          price: { amount: item.price, currency },
           modifiers: item.modifiers
         })) ?? []
     };

@@ -79,6 +79,22 @@ const nav: Array<{ href: string; label: string; icon: typeof Home; roles: Role[]
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['owner'] }
 ];
 
+const roleLabels: Record<Role, string> = {
+  owner: 'Regional Operations Director',
+  manager: 'Operations Supervisor',
+  kitchen: 'Aggregator Control Desk',
+  support: 'Revenue Operations'
+};
+
+function workspaceName(name?: string) {
+  if (!name || name.toLowerCase().includes('demo') || name === 'KitchenFlow GCC Brands') return 'GCC Operations Cluster';
+  return name;
+}
+
+function roleLabel(role?: Role) {
+  return role ? roleLabels[role] : 'Enterprise Workspace';
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -150,18 +166,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between gap-3">
             <div className={collapsed ? 'sr-only' : 'min-w-0'}>
               <p className="truncate text-sm font-bold">
-                {user?.restaurant?.name ?? 'Restaurant'}
+                {workspaceName(user?.restaurant?.name)}
               </p>
 
               <p className="truncate text-xs text-muted">
-                {user?.restaurant?.outlets?.length ?? 0} outlets -{' '}
-                {user?.role?.replace('_', ' ') ?? 'user'}
+                {user?.restaurant?.outlets?.length ?? 0} workspaces -{' '}
+                {roleLabel(user?.role)}
               </p>
             </div>
 
             {collapsed ? (
               <span className="mx-auto grid size-9 place-items-center rounded-xl bg-royal/10 text-xs font-black text-royal">
-                {user?.restaurant?.name?.slice(0, 2).toUpperCase() ?? 'KF'}
+                {workspaceName(user?.restaurant?.name).slice(0, 2).toUpperCase()}
               </span>
             ) : (
               <ChevronDown className="size-4 shrink-0 text-muted" />
@@ -257,7 +273,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </p>
 
               <p className="truncate text-xs text-muted">
-                {user?.role?.replace('_', ' ') ?? 'user'}
+                {roleLabel(user?.role)}
               </p>
             </div>
 

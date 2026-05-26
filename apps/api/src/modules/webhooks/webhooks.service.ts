@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { Prisma } from '@prisma/client';
 import type { Channel, Money, Order, OrderStatus } from '@kitchenflow/types';
 import { ObservabilityService } from '../../common/observability/observability.service';
+import { normalizeCity, normalizeCurrency, normalizeCustomerName, normalizeOperationalText, normalizeOutletName, normalizeProvider, normalizePublicId, orderPrefixForLocation } from '../../common/operational-normalization';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OperationsGateway } from '../../realtime/operations.gateway';
 import { QueuesService } from '../queues/queues.service';
@@ -17,7 +18,7 @@ export class WebhooksService {
   ) {}
 
   async ingest(provider: string, payload: Record<string, unknown>, signature?: string, idempotencyKey?: string, requestId?: string) {
-    const normalizedProvider = provider.toLowerCase();
+    const normalizedProvider = normalizeProvider(provider.toLowerCase());
     const restaurantId = this.readString(payload.restaurantId);
     if (!restaurantId) throw new BadRequestException('restaurantId is required');
 
@@ -208,9 +209,9 @@ export class WebhooksService {
         restaurantId,
         outletId,
         channel,
-        customerName: this.readString(payload.customerName) ?? 'Aggregator customer',
+        customerName: normalizeCustomerName(this.readString(payload.customerName) ?? 'Aggregator customer'),
         totalAmount,
-        currency: this.readString(payload.currency) ?? 'AED',
+        currency: normalizeCurrency(this.readString(payload.currency)),
         etaMinutes: Number(payload.etaMinutes ?? 25),
         payload: { ...payload, source: 'webhook', items: lines } as any
       },
@@ -243,7 +244,7 @@ export class WebhooksService {
   }
 
   private createPublicId(city: string) {
-    return `#${city.slice(0, 3).toUpperCase()}-${Math.floor(10000 + Math.random() * 90000)}`;
+    return `#${orderPrefixForLocation(city)}-${Math.floor(10000 + Math.random() * 90000)}`;
   }
 
   private serializeOrder(order: {
@@ -268,17 +269,20 @@ export class WebhooksService {
     outlet: { name: string; city: string };
   }): Order {
     const payload = order.payload as { items?: Array<{ id: string; name: string; quantity: number; price: number; modifiers?: string[] }> };
+    const currency = normalizeCurrency(order.currency) as Money['currency'];
+    const outletName = normalizeOutletName(order.outlet.name);
+    const outletCity = normalizeCity(order.outlet.city);
     return {
       id: order.id,
-      publicId: order.publicId,
+      publicId: normalizePublicId(order.publicId, outletCity || outletName),
       restaurantId: order.restaurantId,
       outletId: order.outletId,
-      outletName: order.outlet.name,
-      outletCity: order.outlet.city,
-      channel: order.channel as Channel,
+      outletName,
+      outletCity,
+      channel: normalizeProvider(order.channel) as Channel,
       status: order.status,
-      customerName: order.customerName,
-      total: { amount: order.totalAmount, currency: order.currency as Money['currency'] },
+      customerName: normalizeCustomerName(order.customerName),
+      total: { amount: order.totalAmount, currency },
       placedAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
       acceptedAt: order.acceptedAt?.toISOString() ?? null,
@@ -290,9 +294,9 @@ export class WebhooksService {
       items:
         payload.items?.map((item, index) => ({
           id: item.id ?? `${order.id}-${index}`,
-          name: item.name,
+          name: normalizeOperationalText(item.name),
           quantity: item.quantity,
-          price: { amount: item.price, currency: order.currency as Money['currency'] },
+          price: { amount: item.price, currency },
           modifiers: item.modifiers
         })) ?? []
     };

@@ -16,7 +16,7 @@ import {
 } from 'recharts';
 import { Activity, AlertCircle, ArrowUpRight, BarChart3, Bell, BrainCircuit, Building2, Clock, Eye, GitBranch, Globe2, KeyRound, Landmark, Loader2, MessageSquare, Minus, PackageCheck, Plug, Plus, Route, ShieldCheck, ShoppingCart, Timer, TrendingUp, UserCheck, Users, WalletCards, Workflow, Zap } from 'lucide-react';
 import { ActivityStream, Badge, Button, Card, Input, InsightBanner, IntelligenceCard, MetricCard, ModalFrame, OperationalStatusChip, SearchInput, Skeleton, SlaMeter } from '@kitchenflow/ui';
-import type { Channel, InventoryItem, MenuItem, OperationalActivity, OperationsNotification, Order, OrderStatus, PaginatedResponse } from '@kitchenflow/types';
+import type { Channel, InventoryItem, MenuItem, OperationalActivity, OperationsNotification, Order, OrderStatus, PaginatedResponse, Role } from '@kitchenflow/types';
 import { formatMoney, percentage, statusCopy, statusTone } from '@kitchenflow/utils';
 import { useAuth } from '@/components/auth/auth-provider';
 import { dashboardApi, type CreateOrderInput } from '@/lib/dashboard-api';
@@ -107,7 +107,7 @@ const marketplaceApps = [
   { name: 'Dynamics 365 Business Central', category: 'Accounting', status: 'degraded', health: 84, insight: 'Payout posting delayed for two settlement batches' }
 ];
 const governanceRows = [
-  { unit: 'GCC Holding Co', type: 'Parent org', access: 'Owner council', compliance: 'Green', scope: 'All brands and regions' },
+  { unit: 'GCC Holding Co', type: 'Parent org', access: 'Operations council', compliance: 'Green', scope: 'All brands and regions' },
   { unit: 'Dubai Franchise Cluster', type: 'Region', access: 'Regional managers', compliance: 'Watch', scope: 'Dubai Marina, Business Bay, JLT' },
   { unit: 'Abu Dhabi Partners', type: 'Franchisee', access: 'Franchise admins', compliance: 'Green', scope: 'Yas, Reem Island' },
   { unit: 'Cloud Kitchen Brand Lab', type: 'Brand group', access: 'Brand operators', compliance: 'Review', scope: 'Virtual brands and menu tests' }
@@ -256,7 +256,7 @@ const workflowEvolution = [
 const aiGovernanceSignals = [
   { decision: 'Marina staffing escalation', trust: 91, accountability: 'Accepted by Reem Al Suwaidi', audit: 'Board-reportable decision trail' },
   { decision: 'Careem throttling delay', trust: 74, accountability: 'Operator override logged', audit: 'Customer impact held below threshold' },
-  { decision: 'JLT expansion readiness', trust: 86, accountability: 'Requires owner approval', audit: 'Scenario pack attached' }
+  { decision: 'JLT expansion readiness', trust: 86, accountability: 'Requires director approval', audit: 'Scenario pack attached' }
 ];
 const evolutionMilestones = [
   { period: 'Previous Ramadan', lesson: 'Staffing response happened too late for first demand spike.', improvement: 'Current plan escalates before 18:30 and protects SLA by 14%.' },
@@ -279,6 +279,12 @@ const orderTransitions: Record<OrderStatus, OrderStatus[]> = {
   dispatched: ['delivered'],
   delivered: [],
   cancelled: []
+};
+const roleLabels: Record<Role, string> = {
+  owner: 'Regional Operations Director',
+  manager: 'Operations Supervisor',
+  kitchen: 'Aggregator Control Desk',
+  support: 'Revenue Operations'
 };
 
 export function OverviewPage() {
@@ -1469,7 +1475,7 @@ export function IncidentsPage() {
         <MetricCard label="Active incidents" value="3" detail="1 escalated, 2 under investigation">
           <AlertCircle className="size-5 text-royal" />
         </MetricCard>
-        <MetricCard label="Avg time to assign" value="4m" detail="Manager ownership SLA">
+        <MetricCard label="Avg time to assign" value="4m" detail="Supervisor assignment SLA">
           <UserCheck className="size-5 text-royal" />
         </MetricCard>
         <MetricCard label="Audit events" value="72" detail="Comments, handoffs, and actions today">
@@ -1847,7 +1853,7 @@ export function AuditPage() {
             <option value="all">All severities</option>
             {['info', 'warning', 'error', 'critical'].map((item) => (
               <option key={item} value={item}>
-                {item}
+                {roleLabels[item as Role]}
               </option>
             ))}
           </select>
@@ -2033,7 +2039,7 @@ function EnterpriseRiskPanel() {
         {[
           ['Courier capacity', 'Yas and Marina delivery wait times are degrading during dinner peak.', 'Mitigate'],
           ['VAT metadata', '18 orders need invoice metadata before month-end close.', 'Review'],
-          ['Franchise policy drift', 'Dubai cluster has two overrides pending owner approval.', 'Approve']
+          ['Franchise policy drift', 'Dubai cluster has two overrides pending director approval.', 'Approve']
         ].map(([title, detail, action]) => (
           <div key={title} className="rounded-xl border border-line bg-panel-muted/45 p-4">
             <div className="flex items-start justify-between gap-3">
@@ -2119,7 +2125,7 @@ function IncidentCenterPanel() {
               </Badge>
             </div>
             <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-muted">
-              <span>Owner: {incident.owner}</span>
+              <span>Lead: {incident.owner}</span>
               <span>{incident.age} open</span>
               <span>{incident.comments} comments</span>
             </div>
@@ -2235,7 +2241,7 @@ function ComplianceControlPanel() {
         <Card key={item} className="p-5">
           <ShieldCheck className="size-5 text-royal" />
           <h3 className="mt-4 font-black">{item}</h3>
-          <p className="mt-2 text-sm leading-6 text-muted">Governed controls with owner approval, outlet scoping, and durable audit history.</p>
+          <p className="mt-2 text-sm leading-6 text-muted">Governed controls with director approval, outlet scoping, and durable audit history.</p>
         </Card>
       ))}
     </div>
@@ -2565,7 +2571,7 @@ function AutonomousGovernancePanel() {
           ['GCC VAT overlay', 'Invoice metadata coverage at 96.8%.'],
           ['Labor ops compliance', 'Runner scheduling within policy for all regions.'],
           ['Aggregator contracts', 'Careem variance above tolerance, monitor clause 4.2.'],
-          ['Policy drift', 'Two regional overrides require owner approval.']
+          ['Policy drift', 'Two regional overrides require director approval.']
         ].map(([title, detail]) => (
           <div key={title} className="rounded-xl border border-line bg-panel-muted/45 p-4">
             <ShieldCheck className="size-5 text-royal" />
@@ -3125,7 +3131,7 @@ function AutonomousPlanningPanel() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-royal">{item.phase}</p>
                 <p className="mt-2 font-black">{item.plan}</p>
-                <p className="mt-1 text-sm text-muted">Owner: {item.owner}</p>
+                <p className="mt-1 text-sm text-muted">Lead: {item.owner}</p>
               </div>
               <Badge className="bg-royal/10 text-royal ring-royal/25">{item.confidence}%</Badge>
             </div>
@@ -3539,7 +3545,7 @@ function KitchenPerformancePanel() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      <MetricCard label="Active kitchen load" value={String(activeLoad)} detail="Orders in live workflow">
+      <MetricCard label="Active fulfillment load" value={String(activeLoad)} detail="Orders in live workflow">
         <Activity className="size-5 text-royal" />
       </MetricCard>
       <MetricCard label="Queue latency" value={`${queueLatency}m`} detail={`${slaBreaches} SLA breaches today`}>
@@ -3646,7 +3652,7 @@ function PredictiveBenchmarkPanel() {
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-royal">Benchmark overlays</p>
       <h2 className="mt-1 text-xl font-black">Targets and forecast</h2>
       <div className="mt-5 space-y-3">
-        <SlaMeter label="Kitchen efficiency" value={87} detail="target 90% - forecast 92%" tone="warning" />
+        <SlaMeter label="Fulfillment efficiency" value={87} detail="target 90% - forecast 92%" tone="warning" />
         <SlaMeter label="Courier handoff" value={79} detail="target 84% - rider wait rising" tone="warning" />
         <SlaMeter label="Cancellation control" value={94} detail="target 92% - healthy" tone="good" />
       </div>

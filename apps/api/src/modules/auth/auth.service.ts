@@ -5,6 +5,7 @@ import type { Role } from '@kitchenflow/types';
 import * as bcrypt from 'bcryptjs';
 import { AuditService } from '../../common/audit/audit.service';
 import { ObservabilityService } from '../../common/observability/observability.service';
+import { normalizeCity, normalizeOutletName } from '../../common/operational-normalization';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto';
 
@@ -180,7 +181,18 @@ export class AuthService {
       });
       throw new UnauthorizedException('User not found');
     }
-    return user;
+    return {
+      ...user,
+      restaurant: {
+        ...user.restaurant,
+        name: user.restaurant.name.toLowerCase().includes('demo') || user.restaurant.name === 'KitchenFlow GCC Brands' ? 'GCC Operations Cluster' : user.restaurant.name,
+        outlets: user.restaurant.outlets.map((outlet) => ({
+          ...outlet,
+          name: normalizeOutletName(outlet.name),
+          city: normalizeCity(outlet.city)
+        }))
+      }
+    };
   }
 
   private async issueTokens(userId: string, restaurantId: string, role: Role) {

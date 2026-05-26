@@ -4,6 +4,7 @@ import { Job, Queue, Worker } from 'bullmq';
 import { Prisma } from '@prisma/client';
 import type { OrderStatus } from '@kitchenflow/types';
 import { ObservabilityService } from '../../common/observability/observability.service';
+import { normalizeCity, normalizeCurrency, normalizeCustomerName, normalizeOperationalText, normalizeOutletName, normalizeProvider, normalizePublicId } from '../../common/operational-normalization';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OperationsGateway } from '../../realtime/operations.gateway';
 
@@ -500,17 +501,20 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
     outlet: { name: string; city: string };
   }) {
     const payload = order.payload as { items?: Array<{ id: string; name: string; quantity: number; price: number; modifiers?: string[] }> };
+    const currency = normalizeCurrency(order.currency);
+    const outletName = normalizeOutletName(order.outlet.name);
+    const outletCity = normalizeCity(order.outlet.city);
     return {
       id: order.id,
-      publicId: order.publicId,
+      publicId: normalizePublicId(order.publicId, outletCity || outletName),
       restaurantId: order.restaurantId,
       outletId: order.outletId,
-      outletName: order.outlet.name,
-      outletCity: order.outlet.city,
-      channel: order.channel as never,
+      outletName,
+      outletCity,
+      channel: normalizeProvider(order.channel) as never,
       status: order.status,
-      customerName: order.customerName,
-      total: { amount: order.totalAmount, currency: order.currency as never },
+      customerName: normalizeCustomerName(order.customerName),
+      total: { amount: order.totalAmount, currency: currency as never },
       placedAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
       ...this.statusTimestamps(order),
@@ -518,9 +522,9 @@ export class QueuesService implements OnModuleInit, OnModuleDestroy {
       items:
         payload.items?.map((item, index) => ({
           id: item.id ?? `${order.id}-${index}`,
-          name: item.name,
+          name: normalizeOperationalText(item.name),
           quantity: item.quantity,
-          price: { amount: item.price, currency: order.currency as never },
+          price: { amount: item.price, currency: currency as never },
           modifiers: item.modifiers
         })) ?? []
     };
