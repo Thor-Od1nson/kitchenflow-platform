@@ -3,6 +3,35 @@ const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
+const ENTERPRISE_PASSWORD = 'KitchenFlow@2026';
+const BCRYPT_ROUNDS = 12;
+const ENTERPRISE_USERS = [
+  {
+    email: 'regional.director@kitchenflow.dev',
+    fullName: 'Regional Operations Director',
+    role: 'owner'
+  },
+  {
+    email: 'ops.supervisor@kitchenflow.dev',
+    fullName: 'Operations Supervisor',
+    role: 'manager'
+  },
+  {
+    email: 'aggregator.control@kitchenflow.dev',
+    fullName: 'Aggregator Control Desk',
+    role: 'kitchen'
+  },
+  {
+    email: 'revenue.operations@kitchenflow.dev',
+    fullName: 'Revenue Operations',
+    role: 'support'
+  }
+];
+const LEGACY_AUTH_EMAILS = [
+  'operations.supervisor@kitchenflow.dev',
+  'aggregator.desk@kitchenflow.dev'
+];
+
 const channels = ['deliveroo', 'talabat', 'careem', 'noon_food', 'hungerstation', 'jahez', 'uber_eats'];
 const statuses = ['pending', 'accepted', 'preparing', 'dispatched', 'delivered', 'cancelled'];
 const customers = [
@@ -51,22 +80,68 @@ function daysAgo(days, hourOffset = 0) {
 }
 
 async function upsertUser({ email, fullName, role, restaurantId, passwordHash }) {
+  const normalizedEmail = email.trim().toLowerCase();
   return prisma.user.upsert({
-    where: { email },
+    where: { email: normalizedEmail },
     update: { fullName, role, restaurantId, passwordHash },
-    create: { email, fullName, role, restaurantId, passwordHash }
+    create: { email: normalizedEmail, fullName, role, restaurantId, passwordHash }
   });
 }
 
+function seedLog(message, metadata = {}) {
+  console.log(
+    JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: 'info',
+      message,
+      module: 'seed',
+      service: 'kitchenflow-api',
+      ...metadata
+    })
+  );
+}
+
 async function main() {
-  const passwordHash = await bcrypt.hash('Password123!', 12);
+  const passwordHash = await bcrypt.hash(ENTERPRISE_PASSWORD, BCRYPT_ROUNDS);
   const restaurant = await prisma.restaurant.upsert({
     where: { slug: 'gcc-operations-cluster' },
     update: { name: 'GCC Operations Cluster', plan: 'enterprise' },
     create: { name: 'GCC Operations Cluster', slug: 'gcc-operations-cluster', plan: 'enterprise' }
   });
 
-  await prisma.refreshToken.deleteMany({ where: { user: { restaurantId: restaurant.id } } });
+  const enterpriseEmails = ENTERPRISE_USERS.map((user) => user.email);
+  const staleEmails = [...LEGACY_AUTH_EMAILS];
+  const staleAuthWhere = {
+    OR: [
+      { email: { in: staleEmails } },
+      {
+        email: {
+          endsWith: '@kitchenflow.dev',
+          notIn: enterpriseEmails
+        }
+      }
+    ]
+  };
+
+  await prisma.refreshToken.deleteMany({
+    where: {
+      OR: [
+        { user: { restaurantId: restaurant.id } },
+        { user: { email: { in: enterpriseEmails } } },
+        { user: staleAuthWhere }
+      ]
+    }
+  });
+  const staleUsers = await prisma.user.deleteMany({
+    where: staleAuthWhere
+  });
+  seedLog('auth_seed_legacy_users_removed', {
+    restaurantId: restaurant.id,
+    staleEmails,
+    policy: 'remove-non-enterprise-kitchenflow-dev-identities',
+    removedCount: staleUsers.count
+  });
+
   await prisma.webhookEvent.deleteMany({ where: { restaurantId: restaurant.id } });
   await prisma.payoutLedger.deleteMany({ where: { restaurantId: restaurant.id } });
   await prisma.jobActivity.deleteMany({ where: { restaurantId: restaurant.id } });
@@ -78,12 +153,18 @@ async function main() {
   await prisma.integration.deleteMany({ where: { restaurantId: restaurant.id } });
   await prisma.outlet.deleteMany({ where: { restaurantId: restaurant.id } });
 
-  await Promise.all([
-    upsertUser({ email: 'regional.director@kitchenflow.dev', fullName: 'Mariam Al Suwaidi', role: 'owner', restaurantId: restaurant.id, passwordHash }),
-    upsertUser({ email: 'operations.supervisor@kitchenflow.dev', fullName: 'Omar Al Fahad', role: 'manager', restaurantId: restaurant.id, passwordHash }),
-    upsertUser({ email: 'aggregator.desk@kitchenflow.dev', fullName: 'Khalid Al Nahyan', role: 'kitchen', restaurantId: restaurant.id, passwordHash }),
-    upsertUser({ email: 'revenue.operations@kitchenflow.dev', fullName: 'Layla Hassan', role: 'support', restaurantId: restaurant.id, passwordHash })
-  ]);
+  const users = await Promise.all(
+    ENTERPRISE_USERS.map((user) => upsertUser({ ...user, restaurantId: restaurant.id, passwordHash }))
+  );
+  users.forEach((user) => {
+    seedLog('auth_seed_user_upserted', {
+      restaurantId: user.restaurantId,
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      fullName: user.fullName
+    });
+  });
 
   const outlets = await Promise.all(
     [
@@ -186,7 +267,14 @@ async function main() {
     }))
   });
 
-  console.log('Seeded GCC enterprise operations workspace with users, outlets, 140 orders, menu, inventory, integrations, and analytics events.');
+  seedLog('gcc_enterprise_workspace_seeded', {
+    restaurantId: restaurant.id,
+    users: ENTERPRISE_USERS.map(({ email, fullName, role }) => ({ email, fullName, role })),
+    passwordPolicy: 'shared-enterprise-demo-password',
+    outlets: outlets.length,
+    orders: orderData.length,
+    menuItems: menuItems.length
+  });
 }
 
 main()

@@ -11,7 +11,7 @@ export default function LoginPage() {
   const { login, isLoading } = useAuth();
   const [sessionExpired, setSessionExpired] = useState(false);
   const [email, setEmail] = useState('regional.director@kitchenflow.dev');
-  const [password, setPassword] = useState('Password123!');
+  const [password, setPassword] = useState('KitchenFlow@2026');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
