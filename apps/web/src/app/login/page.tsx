@@ -36,15 +36,17 @@ export default function LoginPage() {
     <main className="noise min-h-screen bg-surface text-ink">
       <div className="mx-auto grid min-h-screen max-w-6xl items-center gap-8 px-5 py-8 lg:grid-cols-[1fr_430px]">
         <section className="max-w-2xl">
-          <Link href="/" className="inline-flex items-center gap-3 text-lg font-black">
-            <span className="grid size-10 place-items-center rounded-xl bg-royal text-slate-950 shadow-soft">
-              <Utensils className="size-5" />
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/" className="inline-flex items-center gap-3 text-lg font-black leading-none">
+              <span className="grid size-10 place-items-center rounded-xl bg-royal text-slate-950 shadow-soft">
+                <Utensils className="size-5" />
+              </span>
+              <span>KitchenFlow</span>
+            </Link>
+            <span className="inline-flex h-7 items-center whitespace-nowrap rounded-full border border-royal/20 bg-royal/10 px-3 text-xs font-bold leading-none text-royal">
+              GCC enterprise operations access
             </span>
-            KitchenFlow
-          </Link>
-          <p className="mt-10 inline-flex rounded-full border border-royal/25 bg-royal/10 px-3 py-1 text-sm font-bold text-royal">
-            GCC enterprise operations access
-          </p>
+          </div>
           <h1 className="mt-5 text-4xl font-black tracking-tight text-ink md:text-5xl">
             One platform. Multiple aggregators. Unified operations.
           </h1>
@@ -53,9 +55,9 @@ export default function LoginPage() {
           </p>
           <div className="mt-7 grid max-w-xl gap-3 sm:grid-cols-3">
             {[
-              ['99.97%', 'sync uptime'],
-              ['8', 'outlets'],
-              ['6', 'channels']
+              ['99.97%', 'modeled sync uptime'],
+              ['8', 'regional workspaces'],
+              ['6', 'aggregator lanes']
             ].map(([value, label]) => (
               <div key={label} className="rounded-2xl border border-line bg-panel/70 p-4">
                 <p className="text-2xl font-black">{value}</p>
@@ -72,10 +74,10 @@ export default function LoginPage() {
           </div>
           <div className="mt-7 grid max-w-xl gap-3 md:grid-cols-2">
             {[
-              ['Ops manager', 'Queues, incidents, outlet SLA'],
-              ['Finance controller', 'Payouts, VAT, BC exports'],
-              ['Kitchen lead', 'Prep flow, stock, handoffs'],
-              ['Support analyst', 'Webhooks, retries, customer issues']
+              ['Operations Controller', 'Queues, incidents, outlet SLA'],
+              ['Fulfillment Director', 'Payouts, VAT, BC exports'],
+              ['Regional Operations Lead', 'Prep flow, stock, handoffs'],
+              ['Aggregator Control Desk', 'Webhooks, retries, channel issues']
             ].map(([role, scope]) => (
               <div key={role} className="rounded-xl border border-line bg-panel/70 p-3">
                 <p className="font-black">{role}</p>
@@ -89,7 +91,7 @@ export default function LoginPage() {
           <div>
             <p className="text-sm font-semibold text-royal">Welcome back</p>
             <h2 className="mt-1 text-2xl font-black tracking-tight">Sign in to operations</h2>
-            <p className="mt-2 text-sm text-muted">HQ, finance, support, and outlet teams share one live GCC control layer.</p>
+            <p className="mt-2 text-sm text-muted">HQ, finance, command center, and outlet teams share one live GCC control layer.</p>
           </div>
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>

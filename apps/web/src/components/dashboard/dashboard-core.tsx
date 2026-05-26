@@ -709,7 +709,7 @@ export function OrdersPage() {
                       {canManageOrders ? (
                         <OrderActions order={order} loadingOrderId={updateStatus.variables?.orderId} loading={updateStatus.isPending} onUpdate={updateOrder} />
                       ) : (
-                        <span className="text-xs font-semibold text-muted">Read only</span>
+                        <span className="text-xs font-semibold text-muted">Observer access</span>
                       )}
                     </td>
                     <td className="px-5 py-4">

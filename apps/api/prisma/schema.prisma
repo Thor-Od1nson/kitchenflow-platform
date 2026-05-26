@@ -98,7 +98,7 @@ model Outlet {
   restaurant   Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   name         String
   city         String
-  timezone     String          @default("Asia/Kolkata")
+  timezone     String          @default("Asia/Dubai")
   orders       Order[]
   inventory    InventoryItem[]
   inventoryActivity InventoryActivity[]
@@ -118,7 +118,7 @@ model Order {
   status       OrderStatus  @default(pending)
   customerName String
   totalAmount  Int
-  currency     String       @default("INR")
+  currency     String       @default("AED")
   payload      Json
   etaMinutes   Int
   acceptedAt   DateTime?
@@ -204,7 +204,7 @@ model MenuItem {
   name         String
   category     String
   priceAmount  Int
-  currency     String            @default("INR")
+  currency     String            @default("AED")
   available    Boolean           @default(true)
   variants     Json
   imageUrl     String?

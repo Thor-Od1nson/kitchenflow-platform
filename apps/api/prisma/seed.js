@@ -186,7 +186,7 @@ async function main() {
     }))
   });
 
-  console.log('Seeded GCC demo restaurant with users, outlets, 140 orders, menu, inventory, integrations, and analytics events.');
+  console.log('Seeded GCC enterprise operations workspace with users, outlets, 140 orders, menu, inventory, integrations, and analytics events.');
 }
 
 main()

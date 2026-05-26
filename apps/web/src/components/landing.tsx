@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { ArrowRight, CheckCircle2, Globe2, PlugZap, ShieldCheck, Sparkles, Truck, Utensils } from 'lucide-react';
 import { Button, Card } from '@kitchenflow/ui';
-import { integrations, kpis, orders, revenueSeries } from '@/lib/data';
-import { formatMoney, statusCopy, statusTone } from '@kitchenflow/utils';
+import { integrations, revenueSeries } from '@/lib/data';
 
 const brands = ['Jumeirah Group', 'Dubai Marina Kitchens', 'Yas Cloud Dining', 'Riyadh Prime Foods', 'Marina Deli'];
 const features = [
@@ -27,9 +26,21 @@ const features = [
   }
 ];
 const heroStats = [
-  { value: 'AED 387k', label: 'GMV today' },
-  { value: '94%', label: 'SLA health' },
-  { value: '12', label: 'stock risks' }
+  { value: 'AED 387k', label: 'modeled GMV coverage' },
+  { value: '94%', label: 'SLA scenario health' },
+  { value: '12', label: 'risk categories' }
+];
+const previewMetrics = [
+  { value: '8', label: 'regional workspaces' },
+  { value: '6', label: 'aggregator lanes' },
+  { value: '24/7', label: 'command visibility' },
+  { value: '99.97%', label: 'modeled sync uptime' }
+];
+const previewWorkflows = [
+  ['Aggregator orchestration', 'Deliveroo, Talabat, Careem, Noon Food, HungerStation, Jahez, and Business Central lanes.'],
+  ['Regional operations', 'Dubai Marina, Abu Dhabi Yas, Riyadh Olaya, Doha West Bay, and Jeddah Corniche visibility.'],
+  ['Enterprise governance', 'Role-aware escalation, audit posture, payout readiness, and SLA scenario modeling.'],
+  ['Fulfillment resilience', 'Previewed order pressure, stock exposure, dispatch latency, and command center handoffs.']
 ];
 const intelligenceModules = [
   ['Dispatch control', 'Forecast SLA pressure, recommend runner allocation, and surface prep bottlenecks before dinner surge.'],
@@ -71,7 +82,7 @@ export function LandingPage() {
         <div className="relative mx-auto grid max-w-7xl gap-10 px-6 pb-10 pt-12 lg:grid-cols-[.9fr_1.1fr] lg:pb-16 lg:pt-20">
           <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65 }}>
             <p className="inline-flex rounded-full border border-royal/25 bg-royal/10 px-3 py-1 text-sm font-bold text-royal">
-              KitchenFlow Enterprise - Dubai Edition
+              KitchenFlow GCC Enterprise Preview
             </p>
             <h1 className="mt-7 max-w-4xl text-5xl font-black tracking-tight md:text-7xl">
               Delivery operations for premium GCC food brands.
@@ -82,7 +93,7 @@ export function LandingPage() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button size="lg">
-                Book enterprise demo <ArrowRight className="size-4" />
+                Request enterprise walkthrough <ArrowRight className="size-4" />
               </Button>
               <Link href="/login">
                 <Button size="lg" variant="secondary">
@@ -91,10 +102,10 @@ export function LandingPage() {
               </Link>
             </div>
             <div className="mt-10 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
-              {kpis.map((kpi) => (
-                <div key={kpi.label} className="rounded-2xl border border-line bg-panel/70 p-4">
-                  <p className="text-2xl font-black">{kpi.value}</p>
-                  <p className="mt-1 text-xs font-semibold text-muted">{kpi.label}</p>
+              {previewMetrics.map((metric) => (
+                <div key={metric.label} className="rounded-2xl border border-line bg-panel/70 p-4">
+                  <p className="text-2xl font-black">{metric.value}</p>
+                  <p className="mt-1 text-xs font-semibold text-muted">{metric.label}</p>
                 </div>
               ))}
             </div>
@@ -106,19 +117,24 @@ export function LandingPage() {
             transition={{ delay: 0.12, duration: 0.65 }}
             className="relative"
           >
-            <div className="absolute -right-3 top-6 hidden rounded-xl border border-royal/25 bg-royal/10 px-4 py-3 text-sm font-bold text-royal shadow-soft lg:block">
-              LIVE - 8 outlets - 6 aggregators
-            </div>
             <Card className="overflow-hidden">
               <div className="border-b border-line bg-panel-muted/70 px-5 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-bold uppercase tracking-[0.16em] text-royal">HQ operations</p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold uppercase tracking-[0.16em] text-royal">Enterprise preview</p>
                     <p className="mt-1 text-xl font-black">Dubai revenue and SLA desk</p>
                   </div>
-                  <span className="rounded-full border border-royal/25 bg-royal/10 px-3 py-1 text-xs font-bold text-royal">
-                    99.97% sync
-                  </span>
+                  <div className="flex max-w-full flex-wrap items-center gap-2">
+                    <span className="inline-flex h-7 items-center whitespace-nowrap rounded-full border border-royal/25 bg-royal/10 px-3 text-xs font-bold leading-none text-royal">
+                      PREVIEW - 8 workspaces
+                    </span>
+                    <span className="inline-flex h-7 items-center whitespace-nowrap rounded-full border border-line bg-panel px-3 text-xs font-bold leading-none text-muted">
+                      99.97% modeled sync
+                    </span>
+                    <span className="inline-flex h-7 items-center whitespace-nowrap rounded-full border border-line bg-panel px-3 text-xs font-bold leading-none text-muted">
+                      6 aggregator lanes
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="grid gap-0 xl:grid-cols-[1fr_340px]">
@@ -149,26 +165,19 @@ export function LandingPage() {
                 </div>
                 <div className="border-t border-line p-5 xl:border-l xl:border-t-0">
                   <div className="flex items-center justify-between">
-                    <p className="font-bold">Live delivery queue</p>
+                    <p className="font-bold">Preview control scope</p>
                     <Truck className="size-5 text-royal" />
                   </div>
                   <div className="mt-4 space-y-3">
-                    {orders.slice(0, 4).map((order, index) => (
+                    {previewWorkflows.map(([title, copy], index) => (
                       <motion.div
-                        key={order.id}
+                        key={title}
                         animate={{ y: [0, index === 0 ? -4 : 0, 0] }}
                         transition={{ duration: 3, repeat: Infinity, delay: index * 0.18 }}
                         className="rounded-xl border border-line bg-panel-muted/60 p-3"
                       >
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-bold">{order.publicId}</p>
-                          <span className={`rounded-full px-2 py-1 text-[11px] font-bold ring-1 ${statusTone[order.status]}`}>
-                            {statusCopy[order.status]}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-muted">
-                          {order.outletName} - {formatMoney(order.total.amount)}
-                        </p>
+                        <p className="text-sm font-bold">{title}</p>
+                        <p className="mt-1 text-xs leading-5 text-muted">{copy}</p>
                       </motion.div>
                     ))}
                   </div>
@@ -206,12 +215,12 @@ export function LandingPage() {
           <Card className="overflow-hidden p-6">
             <div className="flex flex-col justify-between gap-5 md:flex-row md:items-start">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-royal">Live logistics control</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-royal">Preview logistics model</p>
                 <h2 className="mt-3 max-w-2xl text-3xl font-black tracking-tight">Built around the moment an order becomes operational risk.</h2>
               </div>
               <span className="inline-flex w-fit items-center gap-2 rounded-full border border-royal/25 bg-royal/10 px-3 py-1 text-xs font-bold text-royal">
                 <span className="live-pulse size-1.5 rounded-full bg-royal" />
-                Live GCC desk
+                Preview GCC desk
               </span>
             </div>
             <div className="mt-8 grid gap-3 md:grid-cols-2">

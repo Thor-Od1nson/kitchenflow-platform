@@ -64,7 +64,7 @@ const nav: Array<{ href: string; label: string; icon: typeof Home; roles: Role[]
   { href: '/dashboard/inventory', label: 'Inventory', icon: Boxes, roles: ['owner', 'manager', 'support'] },
   { href: '/dashboard/integrations', label: 'Integrations', icon: Plug, roles: ['owner', 'manager'] },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/copilot', label: 'Ops advisor', icon: Bot, roles: ['owner', 'manager', 'support'] },
+  { href: '/dashboard/copilot', label: 'Ops intelligence', icon: Bot, roles: ['owner', 'manager', 'support'] },
   { href: '/dashboard/finance', label: 'Finance ops', icon: WalletCards, roles: ['owner', 'manager'] },
   { href: '/dashboard/economics', label: 'Economics', icon: WalletCards, roles: ['owner', 'manager'] },
   { href: '/dashboard/customers', label: 'Customers', icon: Users, roles: ['owner', 'manager', 'support'] },
