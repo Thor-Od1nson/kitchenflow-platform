@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { Activity, AlertCircle, ArrowUpRight, BarChart3, Bell, BrainCircuit, Building2, Clock, Eye, GitBranch, Globe2, KeyRound, Landmark, Loader2, MessageSquare, Minus, PackageCheck, Plug, Plus, Route, ShieldCheck, ShoppingCart, Timer, TrendingUp, UserCheck, Users, WalletCards, Workflow, Zap } from 'lucide-react';
+import { Activity, AlertCircle, ArrowUpRight, BarChart3, Bell, BrainCircuit, Building2, ChevronDown, Clock, Eye, GitBranch, Globe2, KeyRound, Landmark, Loader2, MessageSquare, Minus, PackageCheck, Plug, Plus, Route, ShieldCheck, ShoppingCart, Timer, TrendingUp, UserCheck, Users, WalletCards, Workflow, Zap } from 'lucide-react';
 import { ActivityStream, Badge, Button, Card, Input, InsightBanner, IntelligenceCard, MetricCard, ModalFrame, OperationalStatusChip, SearchInput, Skeleton, SlaMeter } from '@kitchenflow/ui';
 import type { Channel, InventoryItem, MenuItem, OperationalActivity, OperationsNotification, Order, OrderStatus, PaginatedResponse, Role } from '@kitchenflow/types';
 import { formatMoney, percentage, statusCopy, statusTone } from '@kitchenflow/utils';
@@ -291,16 +291,18 @@ export function OverviewPage() {
   const summary = useAnalyticsSummary();
   const integrations = useIntegrations();
   const orders = useOrders({ page: 1, limit: 5 });
+  const primaryKpis = (summary.data?.kpis ?? []).slice(0, 4);
 
   return (
-    <div className="space-y-6">
-      <PageHeader eyebrow="Operations desk" title="Live GCC delivery operations" action="Export report" disabledReason="Coming soon" />
+    <div className="space-y-8">
+      <PageHeader eyebrow="Operations desk" title="GCC operations control" action="Export report" disabledReason="Coming soon" />
+      <SectionHeading title="Priority controls" detail="SLA, incident, revenue, and operational health signals remain above the fold." />
       <AsyncState loading={summary.isLoading} error={summary.isError}>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {summary.data?.kpis.map((kpi, index) => (
+          {primaryKpis.map((kpi, index) => (
             <motion.div key={kpi.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.06 }}>
               <MetricCard label={kpi.label} value={formatKpiValue(kpi.value, kpi.unit)} detail={`${percentage(kpi.delta)} vs last week`}>
-                <span className="grid size-10 place-items-center rounded-xl bg-royal/10 text-royal ring-1 ring-royal/20">
+                <span className="grid size-10 place-items-center rounded-lg bg-panel-muted text-muted ring-1 ring-line">
                   <ArrowUpRight className="size-5" />
                 </span>
               </MetricCard>
@@ -308,12 +310,16 @@ export function OverviewPage() {
           ))}
         </div>
       </AsyncState>
-      <AiOpsAssistantPanel />
       <OperationalInsightStrip />
+      <ExpandableSection title="Operations Advisor" detail="AI recommendations are available after the core executive metrics, not mixed into the first row.">
+        <AiOpsAssistantPanel />
+      </ExpandableSection>
+      <SectionHeading title="Live operations" detail="Current orders and revenue are limited to the most actionable working set." />
       <div className="grid gap-4 xl:grid-cols-[1.4fr_.8fr]">
         <RevenuePanel />
         <LiveOrderFeed orders={orders.data?.items ?? []} loading={orders.isLoading} error={orders.isError} />
       </div>
+      <SectionHeading title="Tier 2 monitoring" detail="Outlet, aggregator, and stock signals stay available without competing with active SLA work." />
       <div className="grid gap-4 xl:grid-cols-[1fr_.8fr]">
         <RegionalPerformancePanel />
         <div className="space-y-4">
@@ -324,7 +330,7 @@ export function OverviewPage() {
       <div className="grid gap-4 xl:grid-cols-3">
         <IntegrationsPanel items={integrations.data ?? []} loading={integrations.isLoading} error={integrations.isError} />
         <InventoryRiskPanel />
-        <OutletPanel />
+        <ChannelPanel />
       </div>
     </div>
   );
@@ -519,7 +525,7 @@ export function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ tone: 'error'; text: string } | null>(null);
-  const orders = useOrders({ page, limit: 12, status, channel, outletId, query });
+  const orders = useOrders({ page, limit: 8, status, channel, outletId, query });
   const menus = useMenus();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -686,42 +692,42 @@ export function OrdersPage() {
           ))}
         </div>
       </Card>
-      <OrderCommandStrip />
+      <ExpandableSection title="Command Strip" detail="Bulk order controls and escalation shortcuts remain available without competing with the active queue.">
+        <OrderCommandStrip />
+      </ExpandableSection>
       <KitchenQueue orders={visibleOrders} loading={orders.isLoading} error={orders.isError} />
       <Card className="overflow-hidden">
         <AsyncTableState loading={orders.isLoading} error={orders.isError} empty={!orders.data?.items.length}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px] text-left text-sm">
-              <thead className="sticky top-0 z-10 border-b border-line bg-panel-muted/95 text-xs uppercase tracking-[0.14em] text-muted backdrop-blur-xl">
+            <table className="w-full min-w-[820px] text-left text-sm">
+              <thead className="sticky top-0 z-10 border-b border-line bg-panel-muted/95 text-xs text-muted backdrop-blur-xl">
                 <tr>
-                  {['Order', 'Channel', 'Customer', 'Outlet', 'SLA', 'Total', 'Status', 'Actions', 'Detail'].map((head) => (
-                    <th key={head} className="px-5 py-4 font-bold">{head}</th>
+                  {['Order', 'Customer', 'Status', 'SLA', 'Total', 'Next step'].map((head) => (
+                    <th key={head} className="px-5 py-3 font-bold">{head}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-line bg-panel/50">
                 {orders.data?.items.map((order) => (
-                  <tr key={order.id} className="transition hover:bg-royal/5">
-                    <td className="px-5 py-4 font-black text-ink">{order.publicId}</td>
-                    <td className="px-5 py-4 capitalize text-muted">{order.channel.replace('_', ' ')}</td>
+                  <tr key={order.id} className="transition hover:bg-panel-muted/45">
+                    <td className="px-5 py-4">
+                      <button className="text-left" type="button" onClick={() => setSelectedOrder(order)}>
+                        <span className="font-black text-ink">{order.publicId}</span>
+                        <span className="mt-1 block text-xs capitalize text-muted">{order.channel.replace('_', ' ')} - {order.outletName}</span>
+                      </button>
+                    </td>
                     <td className="px-5 py-4">{order.customerName}</td>
-                    <td className="px-5 py-4">{order.outletName}</td>
-                    <td className="px-5 py-4"><SlaBadge order={order} /></td>
-                    <td className="px-5 py-4 font-semibold">{formatMoney(order.total.amount, order.total.currency)}</td>
                     <td className="px-5 py-4">
                       <Badge className={statusTone[order.status]}>{statusCopy[order.status]}</Badge>
                     </td>
+                    <td className="px-5 py-4"><SlaBadge order={order} compact /></td>
+                    <td className="px-5 py-4 font-semibold">{formatMoney(order.total.amount, order.total.currency)}</td>
                     <td className="px-5 py-4">
                       {canManageOrders ? (
                         <OrderActions order={order} loadingOrderId={updateStatus.variables?.orderId} loading={updateStatus.isPending} onUpdate={updateOrder} />
                       ) : (
                         <span className="text-xs font-semibold text-muted">Observer access</span>
                       )}
-                    </td>
-                    <td className="px-5 py-4">
-                      <Button size="sm" variant="ghost" onClick={() => setSelectedOrder(order)} aria-label={`View ${order.publicId}`}>
-                        <Eye className="size-4" />
-                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -796,8 +802,8 @@ function KitchenQueue({ orders, loading, error }: { orders: Order[]; loading: bo
             </div>
             <div className="mt-4 min-h-32 space-y-3">
               <AsyncState loading={loading} error={error} empty={!queueOrders.length}>
-                {queueOrders.slice(0, 4).map((order) => (
-                  <div key={order.id} className="rounded-lg border border-line bg-panel-muted/55 p-3 transition hover:border-royal/35">
+                {queueOrders.slice(0, 2).map((order) => (
+                  <div key={order.id} className="rounded-lg border border-line bg-panel-muted/55 p-3 transition hover:bg-panel-muted">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-bold text-ink">{order.publicId}</p>
                       <SlaBadge order={order} compact />
@@ -809,6 +815,9 @@ function KitchenQueue({ orders, loading, error }: { orders: Order[]; loading: bo
                     </div>
                   </div>
                 ))}
+                {queueOrders.length > 2 ? (
+                  <p className="text-xs font-semibold text-muted">{queueOrders.length - 2} more in this queue. Use the table below to review all.</p>
+                ) : null}
               </AsyncState>
             </div>
           </Card>
@@ -834,21 +843,20 @@ function OrderActions({
   if (!nextStatuses.length) {
     return <span className="text-xs font-semibold text-muted">No actions</span>;
   }
+  const primaryStatus = nextStatuses.find((nextStatus) => nextStatus !== 'cancelled') ?? nextStatuses[0];
+  const cancelStatus = nextStatuses.includes('cancelled') && primaryStatus !== 'cancelled' ? 'cancelled' : null;
 
   return (
     <div className="flex flex-wrap gap-2">
-      {nextStatuses.map((nextStatus) => (
-        <Button
-          key={nextStatus}
-          size="sm"
-          variant={nextStatus === 'cancelled' ? 'danger' : 'secondary'}
-          onClick={() => onUpdate(order, nextStatus)}
-          disabled={loading}
-        >
-          {isThisOrderLoading ? <Loader2 className="size-4 animate-spin" /> : null}
-          {actionCopy(nextStatus)}
+      <Button size="sm" variant="secondary" onClick={() => onUpdate(order, primaryStatus)} disabled={loading}>
+        {isThisOrderLoading ? <Loader2 className="size-4 animate-spin" /> : null}
+        {actionCopy(primaryStatus)}
+      </Button>
+      {cancelStatus ? (
+        <Button size="sm" variant="ghost" onClick={() => onUpdate(order, cancelStatus)} disabled={loading}>
+          Cancel
         </Button>
-      ))}
+      ) : null}
     </div>
   );
 }
@@ -1083,7 +1091,6 @@ function SlaBadge({ order, compact }: { order: Order; compact?: boolean }) {
   const now = useNow();
   const state = getSlaState(order, now);
   const label = state.remainingMs <= 0 ? `${Math.abs(state.minutes)}m overdue` : `${state.minutes}m left`;
-  const liveClass = state.level === 'red' || state.level === 'yellow' ? 'live-pulse' : '';
   const tone =
     state.level === 'red'
       ? 'bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-800'
@@ -1093,7 +1100,7 @@ function SlaBadge({ order, compact }: { order: Order; compact?: boolean }) {
 
   return (
     <Badge className={tone}>
-      <span className={`${liveClass} mr-1.5 size-1.5 rounded-full bg-current`} />
+      <span className="mr-1.5 size-1.5 rounded-full bg-current" />
       {compact ? null : <Timer className="mr-1 size-3" />}
       {label}
     </Badge>
@@ -1219,7 +1226,9 @@ export function AutomationPage() {
         <AutomationRunHistoryPanel />
       </div>
       <AutomationWorkflowCanvas />
-      <AutonomousGovernancePanel />
+      <ExpandableSection title="Autonomous Governance" detail="Decision guardrails and policy automation are retained as a governance layer.">
+        <AutonomousGovernancePanel />
+      </ExpandableSection>
     </div>
   );
 }
@@ -1227,17 +1236,43 @@ export function AutomationPage() {
 export function ExecutivePage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Executive overview" title="Boardroom-ready GCC operations overview" action="Export board pack" disabledReason="Coming soon" />
+      <PageHeader eyebrow="Executive view" title="Board-ready operating confidence" action="Export board pack" disabledReason="Coming soon" />
       <ExecutiveSummaryStrip />
-      <div className="grid gap-4 xl:grid-cols-[1fr_.85fr]">
-        <RegionalPerformancePanel />
-        <EnterpriseRiskPanel />
-      </div>
-      <div className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
-        <FranchiseProfitabilityPanel />
-        <ForecastBoardPanel />
-      </div>
-      <BoardroomNarrativePanel />
+      <LayeredWorkspace
+        tabs={[
+          {
+            label: 'Board Health',
+            summary: 'Strategic health, risk, and capital allocation stay first.',
+            content: (
+              <div className="space-y-4">
+                <div className="grid gap-4 xl:grid-cols-[1fr_.85fr]">
+                  <RegionalPerformancePanel />
+                  <EnterpriseRiskPanel />
+                </div>
+                <div className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
+                  <FranchiseProfitabilityPanel />
+                  <ForecastBoardPanel />
+                </div>
+              </div>
+            )
+          },
+          {
+            label: 'Narrative',
+            summary: 'Investor and boardroom commentary is available without crowding the first render.',
+            content: <BoardroomNarrativePanel />
+          },
+          {
+            label: 'Depth',
+            summary: 'Advanced enterprise intelligence remains one layer down.',
+            content: (
+              <div className="space-y-4">
+                <EnterpriseResilienceBriefPanel />
+                <StrategicNarrativeEnginePanel />
+              </div>
+            )
+          }
+        ]}
+      />
     </div>
   );
 }
@@ -1245,8 +1280,7 @@ export function ExecutivePage() {
 export function DigitalTwinPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Outlet model" title="Fulfillment pressure and scenario modeling" action="Run simulation" disabledReason="Coming soon" />
-      <EnterpriseStateEnginePanel />
+      <PageHeader eyebrow="Digital twin" title="Fulfillment pressure and scenario modeling" action="Run simulation" disabledReason="Coming soon" />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Twin confidence" value="86%" detail="Live model confidence range">
           <BrainCircuit className="size-5 text-royal" />
@@ -1261,12 +1295,33 @@ export function DigitalTwinPage() {
           <PackageCheck className="size-5 text-royal" />
         </MetricCard>
       </div>
-      <div className="grid gap-4 xl:grid-cols-[1.15fr_.85fr]">
-        <DigitalTwinSimulationPanel />
-        <TwinOutletModelPanel />
-      </div>
-      <IntelligenceMeshPanel />
-      <TwinForecastOverlayPanel />
+      <ExpandableSection title="Enterprise State Engine" detail="Enterprise confidence and system state remain available before deeper modeling.">
+        <EnterpriseStateEnginePanel />
+      </ExpandableSection>
+      <LayeredWorkspace
+        tabs={[
+          {
+            label: 'Model',
+            summary: 'Outlet pressure and readiness are visible before the deeper simulations.',
+            content: (
+              <div className="grid gap-4 xl:grid-cols-[1.15fr_.85fr]">
+                <DigitalTwinSimulationPanel />
+                <TwinOutletModelPanel />
+              </div>
+            )
+          },
+          {
+            label: 'Forecast',
+            summary: 'Scenario overlays and dependency reasoning stay grouped together.',
+            content: (
+              <div className="space-y-4">
+                <TwinForecastOverlayPanel />
+                <IntelligenceMeshPanel />
+              </div>
+            )
+          }
+        ]}
+      />
     </div>
   );
 }
@@ -1274,13 +1329,36 @@ export function DigitalTwinPage() {
 export function NetworkPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Global control network" title="Regional pulse, outlet topology, and logistics corridors" action="Open network view" disabledReason="Coming soon" />
-      <div className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
-        <EnterpriseNetworkMapPanel />
-        <RegionalPulsePanel />
-      </div>
-      <EcosystemCoordinationPanel />
-      <LogisticsCorridorPanel />
+      <PageHeader eyebrow="Network view" title="Regional pulse, outlet topology, and logistics corridors" action="Open network view" disabledReason="Coming soon" />
+      <LayeredWorkspace
+        tabs={[
+          {
+            label: 'Regions',
+            summary: 'Network status begins with regional health and operating corridors.',
+            content: (
+              <div className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
+                <EnterpriseNetworkMapPanel />
+                <RegionalPulsePanel />
+              </div>
+            )
+          },
+          {
+            label: 'Partners',
+            summary: 'Partner resilience and external dependencies are available on demand.',
+            content: <EcosystemCoordinationPanel />
+          },
+          {
+            label: 'Corridors',
+            summary: 'Logistics and balancing details sit one layer below the regional summary.',
+            content: (
+              <div className="space-y-4">
+                <LogisticsCorridorPanel />
+                <MultiRegionBalancingPanel />
+              </div>
+            )
+          }
+        ]}
+      />
     </div>
   );
 }
@@ -1288,14 +1366,38 @@ export function NetworkPage() {
 export function IntelligenceMeshPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Dependency map" title="Cross-system impact and enterprise state" action="Recompute map" disabledReason="Coming soon" />
-      <EnterpriseStateEnginePanel />
-      <div className="grid gap-4 xl:grid-cols-[1.15fr_.85fr]">
-        <IntelligenceMeshPanel />
-        <CrossSystemReasoningPanel />
+      <PageHeader eyebrow="Intelligence mesh" title="Cross-system impact and enterprise state" action="Recompute map" disabledReason="Coming soon" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {meshSignals.slice(0, 4).map((signal) => (
+          <MetricCard key={`${signal.system}-${signal.dependency}`} label={`${signal.system} to ${signal.dependency}`} value={`${signal.impact}%`} detail={signal.signal}>
+            <GitBranch className="size-5 text-muted" />
+          </MetricCard>
+        ))}
       </div>
-      <GlobalOperationsFabricPanel />
-      <AutonomousCoordinationPanel />
+      <LayeredWorkspace
+        tabs={[
+          {
+            label: 'Dependencies',
+            summary: 'Causal links are summarized before cross-system reasoning expands.',
+            content: (
+              <div className="grid gap-4 xl:grid-cols-[1.15fr_.85fr]">
+                <IntelligenceMeshPanel />
+                <CrossSystemReasoningPanel />
+              </div>
+            )
+          },
+          {
+            label: 'Coordination',
+            summary: 'Autonomous coordination remains accessible without occupying the landing state.',
+            content: (
+              <div className="space-y-4">
+                <GlobalOperationsFabricPanel />
+                <AutonomousCoordinationPanel />
+              </div>
+            )
+          }
+        ]}
+      />
     </div>
   );
 }
@@ -1303,29 +1405,87 @@ export function IntelligenceMeshPage() {
 export function OperationsFabricPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Operations workflows" title="Dependency propagation and adaptive enterprise flows" action="Propagate state" disabledReason="Coming soon" />
+      <PageHeader eyebrow="Workflows" title="Dependency propagation and adaptive enterprise flows" action="Propagate state" disabledReason="Coming soon" />
       <EnterpriseAwarenessPulsePanel />
-      <GlobalOperationsFabricPanel />
-      <StrategicOptimizationPanel />
-      <div className="grid gap-4 xl:grid-cols-[1fr_.9fr]">
-        <AdaptiveLearningPanel />
-        <PredictiveEcosystemIntelligencePanel />
-      </div>
+      <LayeredWorkspace
+        tabs={[
+          { label: 'Workflow Queue', summary: 'Current rules and execution history stay operator-friendly.', content: <AutomationRuleEnginePanel /> },
+          { label: 'Propagation', summary: 'Cross-system workflow propagation is a dedicated depth layer.', content: <GlobalOperationsFabricPanel /> },
+          {
+            label: 'Learning',
+            summary: 'Adaptive and ecosystem intelligence are grouped for analyst review.',
+            content: (
+              <div className="grid gap-4 xl:grid-cols-[1fr_.9fr]">
+                <AdaptiveLearningPanel />
+                <PredictiveEcosystemIntelligencePanel />
+              </div>
+            )
+          }
+        ]}
+      />
     </div>
   );
 }
 
 export function MissionControlPage() {
+  const control = useControlCenter();
+  const orders = useOrders({ page: 1, limit: 5, status: 'all' });
+  const socketStatus = useOpsStore((state) => state.socketStatus);
+
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Live wallboard" title="Enterprise wallboard, incidents, and network activity" action="Enter wallboard" disabledReason="Coming soon" />
-      <GlobalSynchronizationPanel />
-      <MissionControlWallboard />
-      <div className="grid gap-4 xl:grid-cols-[1fr_.8fr]">
-        <EnterpriseNetworkMapPanel />
-        <EnterpriseEventTimelinePanel />
+      <PageHeader eyebrow="Live wallboard" title="Current GCC operating state" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Active orders" value={String(control.data?.activeOrders ?? 0)} detail="Live queue load">
+          <ShoppingCart className="size-5 text-muted" />
+        </MetricCard>
+        <MetricCard label="SLA breaches" value={String(control.data?.slaBreachCount ?? 0)} detail="Requires supervisor watch">
+          <Timer className="size-5 text-muted" />
+        </MetricCard>
+        <MetricCard label="Webhook failures" value={String(control.data?.failedWebhookCount ?? 0)} detail="Aggregator recovery watch">
+          <Plug className="size-5 text-muted" />
+        </MetricCard>
+        <MetricCard label="Realtime" value={socketStatus} detail="Wallboard connection state">
+          <Activity className="size-5 text-muted" />
+        </MetricCard>
       </div>
-      <MultiRegionBalancingPanel />
+      <LayeredWorkspace
+        tabs={[
+          {
+            label: 'Live State',
+            summary: 'The wallboard opens with active orders and system activity.',
+            content: (
+              <div className="grid gap-4 xl:grid-cols-[1fr_.8fr]">
+                <LiveOrderFeed orders={orders.data?.items ?? []} loading={orders.isLoading} error={orders.isError} />
+                <SystemActivityPanel />
+              </div>
+            )
+          },
+          {
+            label: 'Wallboard',
+            summary: 'The full enterprise wallboard is retained as the focused command-center layer.',
+            content: (
+              <div className="space-y-4">
+                <GlobalSynchronizationPanel />
+                <MissionControlWallboard />
+              </div>
+            )
+          },
+          {
+            label: 'Network',
+            summary: 'Regional topology and balancing stay available without dominating first render.',
+            content: (
+              <div className="space-y-4">
+                <div className="grid gap-4 xl:grid-cols-[1fr_.8fr]">
+                  <EnterpriseNetworkMapPanel />
+                  <EnterpriseEventTimelinePanel />
+                </div>
+                <MultiRegionBalancingPanel />
+              </div>
+            )
+          }
+        ]}
+      />
     </div>
   );
 }
@@ -1346,12 +1506,14 @@ export function WorkforcePage() {
 export function ScenarioCenterPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Scenario simulation" title="Demand, staffing, outage, weather, and Ramadan what-if modeling" action="Create scenario" disabledReason="Coming soon" />
-      <ScenarioSimulationPanel />
-      <div className="grid gap-4 xl:grid-cols-[1fr_.9fr]">
-        <DigitalTwinSimulationPanel />
-        <StrategicBrainPanel />
-      </div>
+      <PageHeader eyebrow="Scenarios" title="Simulation center and what-if operating plans" action="Run scenario" disabledReason="Coming soon" />
+      <LayeredWorkspace
+        tabs={[
+          { label: 'Simulation', summary: 'Scenario inputs and outputs are grouped as the primary analyst workflow.', content: <ScenarioSimulationPanel /> },
+          { label: 'Brain', summary: 'Strategic AI recommendations remain available as depth.', content: <StrategicBrainPanel /> },
+          { label: 'Economics', summary: 'Financial and growth consequences sit beside operational scenarios.', content: <EnterpriseEconomicPanel /> }
+        ]}
+      />
     </div>
   );
 }
@@ -1372,10 +1534,20 @@ export function KnowledgePage() {
 export function ConsciousnessPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Enterprise pulse" title="Operating maturity, morale, and strategic pressure" action="Refresh pulse" disabledReason="Coming soon" />
+      <PageHeader eyebrow="Consciousness" title="Enterprise pulse and adaptive awareness" />
       <EnterpriseAwarenessPulsePanel />
-      <StrategicNarrativeEnginePanel />
-      <WorldviewModelPanel />
+      <ExpandableSection title="Strategic Awareness" detail="Narrative, worldview, and resilience intelligence are expanded when needed." defaultOpen>
+        <div className="grid gap-4 xl:grid-cols-[1fr_.9fr]">
+          <WorldviewModelPanel />
+          <StrategicNarrativeEnginePanel />
+        </div>
+      </ExpandableSection>
+      <ExpandableSection title="Evolution Layer" detail="Maturity progression and learning stay out of the first visual pass.">
+        <div className="grid gap-4 xl:grid-cols-[1fr_.9fr]">
+          <EnterpriseEvolutionPanel />
+          <AdaptiveLearningPanel />
+        </div>
+      </ExpandableSection>
     </div>
   );
 }
@@ -1383,12 +1555,15 @@ export function ConsciousnessPage() {
 export function TemporalPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Seasonal planning" title="Seasonal learning, operational drift, and trend evolution" action="Compare cycles" disabledReason="Coming soon" />
+      <PageHeader eyebrow="Temporal intelligence" title="Seasonality, operating memory, and horizon planning" />
       <TemporalIntelligencePanel />
-      <div className="grid gap-4 xl:grid-cols-[1fr_.9fr]">
-        <KnowledgeTimelinePanel />
-        <AdaptiveLearningPanel />
-      </div>
+      <LayeredWorkspace
+        tabs={[
+          { label: 'History', summary: 'Recurring patterns and playbooks are the default operating-memory view.', content: <RecurringPatternPanel /> },
+          { label: 'Learning', summary: 'Adaptive learning and workflow evolution sit behind the history layer.', content: <AdaptiveLearningPanel /> },
+          { label: 'Evolution', summary: 'Longer-range maturity signals are available for executive review.', content: <EnterpriseEvolutionPanel /> }
+        ]}
+      />
     </div>
   );
 }
@@ -1409,21 +1584,13 @@ export function CollaborationPage() {
 export function BoardroomPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Boardroom" title="Strategic forecasts, investment planning, and market opportunity briefs" action="Export strategy brief" disabledReason="Coming soon" />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {boardroomBriefs.map((brief) => (
-          <MetricCard key={brief.title} label={brief.title} value={brief.value} detail={brief.detail}>
-            <Landmark className="size-5 text-royal" />
-          </MetricCard>
-        ))}
-      </div>
+      <PageHeader eyebrow="Boardroom" title="Investor-ready narrative and strategic brief" action="Export board pack" disabledReason="Coming soon" />
+      <BoardroomNarrativePanel />
       <div className="grid gap-4 xl:grid-cols-[1fr_.9fr]">
-        <BoardroomNarrativePanel />
+        <ForecastBoardPanel />
         <MarketOpportunityPanel />
       </div>
       <EnterpriseResilienceBriefPanel />
-      <WorldviewModelPanel />
-      <ExecutiveOptimizationPanel />
     </div>
   );
 }
@@ -1431,12 +1598,14 @@ export function BoardroomPage() {
 export function OptimizationPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Strategic optimization" title="Enterprise tradeoffs, sequencing, and operating plans" action="Approve plan" disabledReason="Coming soon" />
-      <StrategicOptimizationPanel />
-      <div className="grid gap-4 xl:grid-cols-[1fr_.9fr]">
-        <EnterpriseEconomicPanel />
-        <WorkflowEvolutionPanel />
-      </div>
+      <PageHeader eyebrow="Optimization" title="Optimization review queue" action="Approve plan" disabledReason="Coming soon" />
+      <LayeredWorkspace
+        tabs={[
+          { label: 'Recommendations', summary: 'Strategic optimization starts with the reviewable action queue.', content: <StrategicOptimizationPanel /> },
+          { label: 'Economics', summary: 'Margin and cost modeling is kept adjacent but secondary.', content: <EnterpriseEconomicPanel /> },
+          { label: 'Workflow Evolution', summary: 'Self-optimizing workflow history remains accessible for analysts.', content: <WorkflowEvolutionPanel /> }
+        ]}
+      />
     </div>
   );
 }
@@ -1444,12 +1613,14 @@ export function OptimizationPage() {
 export function EnterprisePlanningPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Enterprise planning" title="Strategic rollout, expansion sequencing, and roadmaps" action="Generate roadmap" disabledReason="Coming soon" />
-      <AutonomousPlanningPanel />
-      <div className="grid gap-4 xl:grid-cols-[1fr_.9fr]">
-        <MultiRegionBalancingPanel />
-        <ExecutiveOptimizationPanel />
-      </div>
+      <PageHeader eyebrow="Planning" title="Planning queue" action="Generate roadmap" disabledReason="Coming soon" />
+      <LayeredWorkspace
+        tabs={[
+          { label: 'Roadmap', summary: 'Planning opens with autonomous roadmap recommendations.', content: <AutonomousPlanningPanel /> },
+          { label: 'Regions', summary: 'Multi-region balancing is available as a planning layer.', content: <MultiRegionBalancingPanel /> },
+          { label: 'Capital', summary: 'Executive optimization and investment priority remain one tab away.', content: <ExecutiveOptimizationPanel /> }
+        ]}
+      />
     </div>
   );
 }
@@ -3269,12 +3440,12 @@ function PageHeader({
   disabledReason?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-xl border border-line bg-panel/80 p-4 shadow-soft md:p-5">
+    <div className="relative overflow-hidden rounded-lg border border-line bg-panel/80 p-4 md:p-5">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.14em] text-royal">{eyebrow}</p>
-        <h1 className="mt-1 text-2xl font-black tracking-tight md:text-3xl">{title}</h1>
-        <p className="mt-2 max-w-2xl text-sm font-medium text-muted">GCC delivery operations with aggregator sync, SLA controls, payout visibility, and outlet-level accountability.</p>
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted">{eyebrow}</p>
+        <h1 className="mt-1 text-2xl font-black tracking-tight">{title}</h1>
+        <p className="mt-2 max-w-2xl text-sm font-medium text-muted">Aggregator sync, SLA controls, payout visibility, and outlet accountability for GCC operations.</p>
       </div>
       {action ? (
         <Button onClick={onAction} disabled={Boolean(disabledReason) || !onAction} title={disabledReason}>
@@ -3282,6 +3453,107 @@ function PageHeader({
         </Button>
       ) : null}
       </div>
+    </div>
+  );
+}
+
+function LayeredWorkspace({
+  tabs
+}: {
+  tabs: Array<{ label: string; summary: string; content: React.ReactNode }>;
+}) {
+  const [activeLabel, setActiveLabel] = useState(tabs[0]?.label ?? '');
+  const activeTab = tabs.find((tab) => tab.label === activeLabel) ?? tabs[0];
+
+  return (
+    <Card className="p-4 md:p-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted">Workspace layers</p>
+          <p className="mt-1 max-w-2xl text-sm text-muted">{activeTab?.summary}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab.label}
+              type="button"
+              onClick={() => setActiveLabel(tab.label)}
+              className={`min-h-9 rounded-lg border px-3 text-sm font-bold transition ${
+                activeTab?.label === tab.label
+                  ? 'border-royal/30 bg-royal/90 text-slate-950'
+                  : 'border-line bg-panel-muted/40 text-muted hover:bg-panel-muted hover:text-ink'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-5">{activeTab?.content}</div>
+    </Card>
+  );
+}
+
+function ExpandableSection({
+  title,
+  detail,
+  children,
+  defaultOpen = false
+}: {
+  title: string;
+  detail: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <Card className="p-4 md:p-5">
+      <button className="flex w-full items-start justify-between gap-4 text-left" type="button" onClick={() => setOpen((value) => !value)}>
+        <span>
+          <span className="block text-lg font-black">{title}</span>
+          <span className="mt-1 block text-sm text-muted">{detail}</span>
+        </span>
+        <ChevronDown className={`mt-1 size-5 shrink-0 text-muted transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open ? <div className="mt-5">{children}</div> : null}
+    </Card>
+  );
+}
+
+function StabilizedModulePlaceholder({ title, module }: { title: string; module: string }) {
+  return (
+    <div className="space-y-6">
+      <PageHeader eyebrow={module} title={title} />
+      <Card className="p-6">
+        <div className="max-w-3xl">
+          <h2 className="text-xl font-black">Temporarily disabled during UI stabilization</h2>
+          <p className="mt-2 text-sm leading-6 text-muted">
+            This route remains available so bookmarks and protected routing keep working, but the experimental panels are hidden while the GCC operations workspace is simplified.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {[
+              ['Overview', '/dashboard'],
+              ['Orders', '/dashboard/orders'],
+              ['Control center', '/dashboard/control-center'],
+              ['Live wallboard', '/dashboard/mission-control']
+            ].map(([label, href]) => (
+              <a key={href} href={href} className="rounded-lg border border-line bg-panel-muted px-3 py-2 text-sm font-semibold text-muted transition hover:text-ink">
+                {label}
+              </a>
+            ))}
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SectionHeading({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="flex flex-col gap-1 border-b border-line pb-3">
+      <h2 className="text-lg font-black tracking-tight">{title}</h2>
+      <p className="max-w-3xl text-sm text-muted">{detail}</p>
     </div>
   );
 }

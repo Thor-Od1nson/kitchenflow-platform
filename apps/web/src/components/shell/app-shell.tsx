@@ -6,22 +6,23 @@ import { usePathname } from 'next/navigation';
 import {
   BarChart3,
   Bell,
-  ClipboardList,
-  Boxes,
   Bot,
+  Boxes,
   BrainCircuit,
-  Building2,
+  CalendarClock,
   Gauge,
   ChevronDown,
+  ClipboardList,
   Command,
-  Flame,
-  Globe2,
+  DollarSign,
+  GitBranch,
   Home,
   Landmark,
   MessageSquareWarning,
   LogOut,
   MenuSquare,
   Moon,
+  Network,
   PanelLeftClose,
   PanelLeftOpen,
   Plug,
@@ -29,9 +30,8 @@ import {
   Settings,
   ShieldCheck,
   Store,
-  UserCheck,
-  Users,
   Utensils,
+  Users,
   WalletCards,
   Workflow,
   X
@@ -43,40 +43,73 @@ import { useAuth } from '@/components/auth/auth-provider';
 import { useOperationsSocket } from '@/hooks/use-operations-socket';
 import { useOpsStore } from '@/store/ops-store';
 
-const nav: Array<{ href: string; label: string; icon: typeof Home; roles: Role[] }> = [
-  { href: '/dashboard', label: 'Overview', icon: Home, roles: ['owner', 'manager'] },
-  { href: '/dashboard/executive', label: 'Executive', icon: Building2, roles: ['owner', 'manager'] },
-  { href: '/dashboard/boardroom', label: 'Boardroom', icon: Landmark, roles: ['owner', 'manager'] },
-  { href: '/dashboard/optimization', label: 'Optimization', icon: BarChart3, roles: ['owner', 'manager'] },
-  { href: '/dashboard/planning', label: 'Planning', icon: Landmark, roles: ['owner', 'manager'] },
-  { href: '/dashboard/control-center', label: 'Control center', icon: Gauge, roles: ['owner'] },
-  { href: '/dashboard/mission-control', label: 'Live wallboard', icon: Gauge, roles: ['owner', 'manager'] },
-  { href: '/dashboard/operations-fabric', label: 'Workflows', icon: Workflow, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/consciousness', label: 'Enterprise pulse', icon: Gauge, roles: ['owner', 'manager'] },
-  { href: '/dashboard/intelligence-mesh', label: 'Dependencies', icon: Workflow, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/digital-twin', label: 'Outlet model', icon: BarChart3, roles: ['owner', 'manager'] },
-  { href: '/dashboard/network', label: 'Network', icon: Globe2, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/scenarios', label: 'Scenarios', icon: BarChart3, roles: ['owner', 'manager'] },
-  { href: '/dashboard/automation', label: 'Automation', icon: Workflow, roles: ['owner', 'manager'] },
-  { href: '/dashboard/incidents', label: 'Incidents', icon: MessageSquareWarning, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/orders', label: 'Orders', icon: Command, roles: ['owner', 'manager', 'kitchen', 'support'] },
-  { href: '/dashboard/menus', label: 'Menus', icon: MenuSquare, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/inventory', label: 'Inventory', icon: Boxes, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/integrations', label: 'Integrations', icon: Plug, roles: ['owner', 'manager'] },
-  { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/copilot', label: 'Ops intelligence', icon: Bot, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/finance', label: 'Finance ops', icon: WalletCards, roles: ['owner', 'manager'] },
-  { href: '/dashboard/economics', label: 'Economics', icon: WalletCards, roles: ['owner', 'manager'] },
-  { href: '/dashboard/customers', label: 'Customers', icon: Users, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/workforce', label: 'Workforce', icon: Users, roles: ['owner', 'manager'] },
-  { href: '/dashboard/collaboration', label: 'Approvals', icon: UserCheck, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/stores', label: 'Stores', icon: Store, roles: ['owner', 'manager'] },
-  { href: '/dashboard/knowledge', label: 'Knowledge', icon: ClipboardList, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/temporal', label: 'Seasonality', icon: ClipboardList, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/governance', label: 'Governance', icon: ShieldCheck, roles: ['owner'] },
-  { href: '/dashboard/notifications', label: 'Notifications', icon: Bell, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/audit', label: 'Audit log', icon: ClipboardList, roles: ['owner', 'manager', 'support'] },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['owner'] }
+type NavItem = { href: string; label: string; icon: typeof Home; roles: Role[] };
+type NavSection = { label: string; items: NavItem[] };
+
+const navSections: NavSection[] = [
+  {
+    label: 'Operations',
+    items: [
+      { href: '/dashboard', label: 'Overview', icon: Home, roles: ['owner', 'manager'] },
+      { href: '/dashboard/orders', label: 'Orders', icon: Command, roles: ['owner', 'manager', 'kitchen', 'support'] },
+      { href: '/dashboard/control-center', label: 'Control center', icon: Gauge, roles: ['owner'] },
+      { href: '/dashboard/mission-control', label: 'Live wallboard', icon: Gauge, roles: ['owner', 'manager'] },
+      { href: '/dashboard/inventory', label: 'Inventory', icon: Boxes, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/integrations', label: 'Aggregators', icon: Plug, roles: ['owner', 'manager'] },
+      { href: '/dashboard/menus', label: 'Menus', icon: MenuSquare, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/incidents', label: 'Incidents', icon: MessageSquareWarning, roles: ['owner', 'manager', 'support'] }
+    ]
+  },
+  {
+    label: 'Intelligence',
+    items: [
+      { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/optimization', label: 'Optimization', icon: BarChart3, roles: ['owner', 'manager'] },
+      { href: '/dashboard/planning', label: 'Planning', icon: Landmark, roles: ['owner', 'manager'] },
+      { href: '/dashboard/digital-twin', label: 'Digital twin', icon: BrainCircuit, roles: ['owner', 'manager'] },
+      { href: '/dashboard/intelligence-mesh', label: 'Intelligence mesh', icon: GitBranch, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/scenarios', label: 'Scenarios', icon: CalendarClock, roles: ['owner', 'manager'] },
+      { href: '/dashboard/copilot', label: 'Ops intelligence', icon: Bot, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/knowledge', label: 'Knowledge', icon: ClipboardList, roles: ['owner', 'manager', 'support'] }
+    ]
+  },
+  {
+    label: 'Enterprise',
+    items: [
+      { href: '/dashboard/governance', label: 'Governance', icon: ShieldCheck, roles: ['owner'] },
+      { href: '/dashboard/operations-fabric', label: 'Workflows', icon: Workflow, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/automation', label: 'Automation', icon: Workflow, roles: ['owner', 'manager'] },
+      { href: '/dashboard/finance', label: 'Finance', icon: WalletCards, roles: ['owner', 'manager'] },
+      { href: '/dashboard/economics', label: 'Economics', icon: DollarSign, roles: ['owner', 'manager'] },
+      { href: '/dashboard/customers', label: 'Customers', icon: Users, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/integrations', label: 'Integrations', icon: Plug, roles: ['owner', 'manager'] },
+      { href: '/dashboard/collaboration', label: 'Approvals', icon: Users, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/stores', label: 'Stores', icon: Store, roles: ['owner', 'manager'] },
+      { href: '/dashboard/audit', label: 'Audit log', icon: ClipboardList, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/notifications', label: 'Notifications', icon: Bell, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['owner'] }
+    ]
+  },
+  {
+    label: 'Executive',
+    items: [
+      { href: '/dashboard/boardroom', label: 'Boardroom', icon: Landmark, roles: ['owner', 'manager'] },
+      { href: '/dashboard/executive', label: 'Mission control', icon: Gauge, roles: ['owner', 'manager'] },
+      { href: '/dashboard/consciousness', label: 'Consciousness', icon: BrainCircuit, roles: ['owner', 'manager'] },
+      { href: '/dashboard/temporal', label: 'Temporal intelligence', icon: CalendarClock, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/workforce', label: 'Workforce', icon: Users, roles: ['owner', 'manager'] },
+      { href: '/dashboard/network', label: 'Network', icon: Network, roles: ['owner', 'manager', 'support'] }
+    ]
+  }
+];
+const nav = navSections.flatMap((section) => section.items);
+
+const dashboardModes = [
+  { label: 'Executive', href: '/dashboard/executive', focus: 'board health' },
+  { label: 'Operations', href: '/dashboard', focus: 'live control' },
+  { label: 'Intelligence', href: '/dashboard/analytics', focus: 'signals' },
+  { label: 'Finance', href: '/dashboard/finance', focus: 'settlement' },
+  { label: 'Network', href: '/dashboard/network', focus: 'regions' }
 ];
 
 const roleLabels: Record<Role, string> = {
@@ -99,6 +132,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const [topbarExpanded, setTopbarExpanded] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    Operations: true,
+    Intelligence: true,
+    Enterprise: false,
+    Executive: false
+  });
   const { darkMode, toggleDarkMode } = useOpsStore();
   const notifications = useOpsStore((state) => state.notifications);
   const socketStatus = useOpsStore((state) => state.socketStatus);
@@ -110,7 +150,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const visibleNav = nav.filter((item) => user && item.roles.includes(user.role));
   const activeNav = visibleNav.find((item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)));
-  const visibleMobileNav = visibleNav.filter((item) => ['/dashboard', '/dashboard/orders', '/dashboard/analytics', '/dashboard/inventory'].includes(item.href)).slice(0, 4);
+  const visibleMobileNav = visibleNav.filter((item) => ['/dashboard', '/dashboard/orders', '/dashboard/control-center', '/dashboard/mission-control'].includes(item.href)).slice(0, 4);
 
   useOperationsSocket();
 
@@ -145,7 +185,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="noise min-h-screen bg-surface text-ink">
-      <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-line bg-panel/90 px-3 py-5 shadow-luxe backdrop-blur-2xl transition-all duration-300 lg:block ${collapsed ? 'w-24' : 'w-72'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-line bg-panel/95 px-3 py-5 shadow-soft backdrop-blur-xl transition-all duration-300 lg:block ${collapsed ? 'w-24' : 'w-72'}`}>
         <div className="flex items-center justify-between gap-2 px-2">
         <Link href="/" className="flex min-w-0 items-center gap-3 text-lg font-black">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-royal text-slate-950 shadow-soft">
@@ -185,27 +225,59 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="mt-6 space-y-1">
-          {visibleNav.map((item) => {
-            const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+        <nav className="mt-6 max-h-[calc(100vh-18rem)] space-y-3 overflow-y-auto pr-1">
+          {navSections.map((section) => {
+            const items = section.items.filter((item) => user && item.roles.includes(user.role));
+            if (!items.length) return null;
+            const sectionActive = items.some((item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)));
+            const expanded = collapsed || expandedSections[section.label] || sectionActive;
 
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={collapsed ? item.label : undefined}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
-                  active
-                    ? 'bg-royal text-slate-950 shadow-soft'
-                    : 'text-muted hover:bg-panel-muted hover:text-ink'
-                }`}
-              >
-                <item.icon className="size-4 shrink-0" />
-                <span className={collapsed ? 'sr-only' : 'truncate'}>{item.label}</span>
-                {!collapsed && item.href === '/dashboard/orders' && socketStatus === 'connected' ? (
-                  <span className="ml-auto size-2 rounded-full bg-royal shadow-soft" />
+              <div key={section.label} className="rounded-lg border border-line/70 bg-panel-muted/25 p-1">
+                {!collapsed ? (
+                  <button
+                    className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-[11px] font-bold uppercase tracking-[0.12em] text-muted/80 transition hover:bg-panel-muted hover:text-ink"
+                    type="button"
+                    onClick={() => setExpandedSections((current) => ({ ...current, [section.label]: !expandedSections[section.label] }))}
+                  >
+                    {section.label}
+                    <ChevronDown className={`size-3 transition ${expanded ? 'rotate-180' : ''}`} />
+                  </button>
                 ) : null}
-              </Link>
+                <AnimatePresence initial={false}>
+                  {expanded ? (
+                    <motion.div
+                      initial={collapsed ? false : { height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="space-y-1 overflow-hidden"
+                    >
+                      {items.map((item) => {
+                        const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+
+                        return (
+                          <Link
+                            key={`${section.label}-${item.href}`}
+                            href={item.href}
+                            title={collapsed ? `${section.label}: ${item.label}` : undefined}
+                            className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+                              active
+                                ? 'bg-royal/90 text-slate-950'
+                                : 'text-muted hover:bg-panel-muted hover:text-ink'
+                            }`}
+                          >
+                            <item.icon className="size-4 shrink-0" />
+                            <span className={collapsed ? 'sr-only' : 'truncate'}>{item.label}</span>
+                            {!collapsed && item.href === '/dashboard/orders' && socketStatus === 'connected' ? (
+                              <span className="ml-auto size-1.5 rounded-full bg-emerald-400" />
+                            ) : null}
+                          </Link>
+                        );
+                      })}
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
             );
           })}
         </nav>
@@ -241,7 +313,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className={`transition-all duration-300 ${collapsed ? 'lg:pl-24' : 'lg:pl-72'}`}>
-        <header className="sticky top-0 z-20 border-b border-line bg-panel/80 px-4 py-3 shadow-soft backdrop-blur-2xl">
+        <header className="sticky top-0 z-20 border-b border-line bg-panel/90 px-4 py-3 backdrop-blur-xl">
           <div className="flex flex-wrap items-center gap-3">
             <div className="hidden min-w-0 lg:block">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-royal">{activeNav?.label ?? 'Dubai ops command'}</p>
@@ -282,8 +354,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {socketStatus === 'reconnecting' ? 'Reconnecting' : 'Offline'}
               </span>
             ) : (
-              <span className="hidden items-center gap-2 rounded-full border border-royal/30 bg-royal/10 px-3 py-1 text-xs font-bold text-royal md:inline-flex">
-                <span className="live-pulse size-1.5 rounded-full bg-royal" />
+              <span className="hidden items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300 md:inline-flex">
+                <span className="size-1.5 rounded-full bg-emerald-400" />
                 Live
               </span>
             )}
@@ -294,28 +366,63 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             ) : null}
           </div>
-          <div className="mt-3 hidden flex-wrap gap-2 xl:flex">
+          <div className="mt-3 hidden flex-wrap items-center gap-2 xl:flex">
             {[
               ['Incident center', '/dashboard/control-center', '2'],
-              ['Live wallboard', '/dashboard/mission-control', 'live'],
-              ['Workflows', '/dashboard/operations-fabric', '8'],
-              ['Optimization', '/dashboard/optimization', '4'],
-              ['Outlet model', '/dashboard/digital-twin', '4'],
-              ['Dependencies', '/dashboard/intelligence-mesh', '12'],
-              ['Automation queue', '/dashboard/automation', '18'],
               ['SLA risk queue', '/dashboard/orders', '7'],
-              ['Inventory forecast', '/dashboard/inventory', '12']
+              ['Live wallboard', '/dashboard/mission-control', 'live'],
+              ['Automation queue', '/dashboard/automation', '18'],
             ].map(([label, href, count]) => (
               <Link
                 key={label}
                 href={href}
-                className="inline-flex items-center gap-2 rounded-full border border-line bg-panel-muted/60 px-3 py-1 text-xs font-bold text-muted transition hover:border-royal/40 hover:text-ink"
+                className="inline-flex items-center gap-2 rounded-full border border-line bg-panel-muted/55 px-3 py-1 text-xs font-bold text-muted transition hover:border-line hover:text-ink"
               >
-                <Flame className="size-3 text-royal" />
                 {label}
-                <span className="rounded-full bg-royal/10 px-2 py-0.5 text-royal">{count}</span>
+                <span className="rounded-full bg-panel px-2 py-0.5 text-muted">{count}</span>
               </Link>
             ))}
+            <button
+              className="inline-flex items-center gap-2 rounded-full border border-line bg-panel-muted/35 px-3 py-1 text-xs font-bold text-muted transition hover:bg-panel-muted hover:text-ink"
+              type="button"
+              onClick={() => setTopbarExpanded((value) => !value)}
+            >
+              Secondary metrics
+              <ChevronDown className={`size-3 transition ${topbarExpanded ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+          {topbarExpanded ? (
+            <div className="mt-3 hidden rounded-lg border border-line bg-panel-muted/45 p-3 text-xs text-muted xl:grid xl:grid-cols-4 xl:gap-3">
+              {[
+                ['Optimization', '4 proposals parked'],
+                ['Dependencies', '12 mapped signals'],
+                ['Inventory forecast', 'Top SKUs only'],
+                ['Outlet model', 'Simulation paused']
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <p className="font-bold text-ink">{label}</p>
+                  <p className="mt-1">{value}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <div className="mt-3 hidden items-center gap-2 border-t border-line pt-3 lg:flex">
+            <span className="mr-1 text-xs font-bold uppercase tracking-[0.14em] text-muted">Mode</span>
+            {dashboardModes.map((mode) => {
+              const active = pathname === mode.href || (mode.href !== '/dashboard' && pathname.startsWith(mode.href));
+              return (
+                <Link
+                  key={mode.label}
+                  href={mode.href}
+                  className={`inline-flex min-h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold transition ${
+                    active ? 'border-royal/30 bg-royal/90 text-slate-950' : 'border-line bg-panel-muted/35 text-muted hover:bg-panel-muted hover:text-ink'
+                  }`}
+                  title={`${mode.label} view: ${mode.focus}`}
+                >
+                  {mode.label}
+                </Link>
+              );
+            })}
           </div>
         </header>
 
@@ -361,7 +468,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
       </div>
       {visibleMobileNav.length ? (
-        <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 gap-1 rounded-2xl border border-line bg-panel/95 p-1 shadow-luxe backdrop-blur-2xl lg:hidden">
+        <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 gap-1 rounded-xl border border-line bg-panel/95 p-1 shadow-soft backdrop-blur-xl lg:hidden">
           {visibleMobileNav.map((item) => {
             const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
             return (

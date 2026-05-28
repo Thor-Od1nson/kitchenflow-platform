@@ -10,8 +10,8 @@ const button = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-royal text-slate-950 shadow-soft hover:bg-cyan focus-visible:outline-royal',
-        secondary: 'border border-line bg-panel/80 text-ink shadow-soft hover:border-royal/50 hover:bg-panel-muted',
+        primary: 'bg-royal/90 text-slate-950 hover:bg-royal focus-visible:outline-royal',
+        secondary: 'border border-line bg-panel/80 text-ink hover:border-line hover:bg-panel-muted',
         ghost: 'text-muted hover:bg-panel-muted hover:text-ink',
         danger: 'bg-rose-600 text-white hover:bg-rose-700'
       },
@@ -55,7 +55,7 @@ export function SearchInput(props: React.InputHTMLAttributes<HTMLInputElement>) 
 }
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('glass-panel rounded-xl border shadow-soft', className)} {...props} />;
+  return <div className={cn('glass-panel rounded-lg border', className)} {...props} />;
 }
 
 export function Badge({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
@@ -71,7 +71,7 @@ export function Badge({ className, ...props }: React.HTMLAttributes<HTMLSpanElem
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-xl bg-gradient-to-r from-panel-muted via-royal/10 to-panel-muted', className)} />;
+  return <div className={cn('animate-pulse rounded-lg bg-panel-muted', className)} />;
 }
 
 export function Tabs({
@@ -84,14 +84,14 @@ export function Tabs({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="inline-flex rounded-xl border border-line bg-panel/80 p-1 shadow-soft">
+    <div className="inline-flex rounded-lg border border-line bg-panel/80 p-1">
       {tabs.map((tab) => (
         <button
           key={tab}
           onClick={() => onChange(tab)}
           className={cn(
             'h-8 rounded-lg px-3 text-sm font-semibold transition',
-            value === tab ? 'bg-royal text-slate-950 shadow-soft' : 'text-muted hover:bg-panel-muted hover:text-ink',
+            value === tab ? 'bg-royal/90 text-slate-950' : 'text-muted hover:bg-panel-muted hover:text-ink',
           )}
         >
           {tab}
@@ -128,7 +128,7 @@ export function ModalFrame({
 }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-4 backdrop-blur-sm">
-      <div className="glass-panel w-full max-w-lg rounded-xl border shadow-soft">
+      <div className="glass-panel w-full max-w-lg rounded-lg border">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="font-bold text-ink">{title}</h2>
           <button onClick={onClose} className="grid size-8 place-items-center rounded-lg hover:bg-panel-muted" aria-label="Close modal">
@@ -149,7 +149,7 @@ export function Toast({
   detail: string;
 }) {
   return (
-    <div className="glass-panel flex items-start gap-3 rounded-2xl border p-4 shadow-soft">
+    <div className="glass-panel flex items-start gap-3 rounded-lg border p-4">
       <span className="grid size-8 shrink-0 place-items-center rounded-full bg-royal/15 text-royal">
         <Check className="size-4" />
       </span>
@@ -195,7 +195,7 @@ export function MetricCard({
   children?: React.ReactNode;
 }) {
   return (
-    <Card className="group relative overflow-hidden p-4 transition duration-200 hover:border-royal/35">
+    <Card className="group relative overflow-hidden p-4 transition duration-200 hover:border-line">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted">{label}</p>
@@ -275,7 +275,7 @@ export function IntelligenceCard({
   tone?: 'good' | 'warning' | 'critical' | 'neutral';
 }) {
   return (
-    <Card className="relative overflow-hidden p-4 transition duration-200 hover:border-royal/35">
+    <Card className="relative overflow-hidden p-4 transition duration-200 hover:border-line">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-black text-ink">{title}</p>
@@ -297,7 +297,7 @@ export function InsightBanner({
   action?: string;
 }) {
   return (
-    <div className="rounded-xl border border-royal/25 bg-royal/10 p-4 shadow-soft">
+    <div className="rounded-lg border border-line bg-panel-muted/55 p-4">
       <div className="flex items-start gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-royal text-slate-950">
           <Sparkles className="size-4" />
