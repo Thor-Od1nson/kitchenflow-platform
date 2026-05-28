@@ -104,14 +104,6 @@ const navSections: NavSection[] = [
 ];
 const nav = navSections.flatMap((section) => section.items);
 
-const dashboardModes = [
-  { label: 'Executive', href: '/dashboard/executive', focus: 'board health' },
-  { label: 'Operations', href: '/dashboard', focus: 'live control' },
-  { label: 'Intelligence', href: '/dashboard/analytics', focus: 'signals' },
-  { label: 'Finance', href: '/dashboard/finance', focus: 'settlement' },
-  { label: 'Network', href: '/dashboard/network', focus: 'regions' }
-];
-
 const roleLabels: Record<Role, string> = {
   owner: 'Regional Operations Director',
   manager: 'Operations Supervisor',
@@ -128,11 +120,73 @@ function roleLabel(role?: Role) {
   return role ? roleLabels[role] : 'Enterprise Workspace';
 }
 
+function topbarContext(pathname: string) {
+  if (pathname.startsWith('/dashboard/orders')) {
+    return {
+      label: 'Orders workspace',
+      search: 'Search active orders, customer, outlet...',
+      actions: [
+        { label: 'Queue metrics', href: '/dashboard/orders' },
+        { label: 'Escalations', href: '/dashboard/incidents' }
+      ]
+    };
+  }
+
+  if (pathname.startsWith('/dashboard/finance') || pathname.startsWith('/dashboard/economics')) {
+    return {
+      label: 'Finance workspace',
+      search: 'Search payouts, settlements, invoices...',
+      actions: [
+        { label: 'Payouts', href: '/dashboard/finance' },
+        { label: 'Economics', href: '/dashboard/economics' }
+      ]
+    };
+  }
+
+  if (pathname.startsWith('/dashboard/executive') || pathname.startsWith('/dashboard/boardroom')) {
+    return {
+      label: 'Executive workspace',
+      search: 'Search strategic briefs, regions, risks...',
+      actions: [
+        { label: 'Boardroom', href: '/dashboard/boardroom' },
+        { label: 'Mission', href: '/dashboard/executive' }
+      ]
+    };
+  }
+
+  if (pathname.startsWith('/dashboard/analytics') || pathname.startsWith('/dashboard/optimization') || pathname.startsWith('/dashboard/planning')) {
+    return {
+      label: 'Intelligence workspace',
+      search: 'Search analytics, forecasts, scenarios...',
+      actions: [
+        { label: 'Analytics', href: '/dashboard/analytics' },
+        { label: 'Planning', href: '/dashboard/planning' }
+      ]
+    };
+  }
+
+  if (pathname.startsWith('/dashboard/network') || pathname.startsWith('/dashboard/integrations')) {
+    return {
+      label: 'Network workspace',
+      search: 'Search regions, aggregators, corridors...',
+      actions: [
+        { label: 'Regions', href: '/dashboard/network' },
+        { label: 'Aggregators', href: '/dashboard/integrations' }
+      ]
+    };
+  }
+
+  return {
+    label: 'Operations workspace',
+    search: 'Search orders, menus, stores, integrations...',
+    actions: [] as Array<{ label: string; href: string }>
+  };
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [now, setNow] = useState(() => new Date());
-  const [topbarExpanded, setTopbarExpanded] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     Operations: true,
     Intelligence: true,
@@ -151,6 +205,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const visibleNav = nav.filter((item) => user && item.roles.includes(user.role));
   const activeNav = visibleNav.find((item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)));
   const visibleMobileNav = visibleNav.filter((item) => ['/dashboard', '/dashboard/orders', '/dashboard/control-center', '/dashboard/mission-control'].includes(item.href)).slice(0, 4);
+  const context = topbarContext(pathname);
 
   useOperationsSocket();
 
@@ -185,16 +240,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="noise min-h-screen bg-surface text-ink">
-      <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-line bg-panel/95 px-3 py-5 shadow-soft backdrop-blur-xl transition-all duration-300 lg:block ${collapsed ? 'w-24' : 'w-72'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-30 hidden border-r border-line bg-panel px-3 py-5 transition-all duration-300 lg:block ${collapsed ? 'w-24' : 'w-72'}`}>
         <div className="flex items-center justify-between gap-2 px-2">
         <Link href="/" className="flex min-w-0 items-center gap-3 text-lg font-black">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-royal text-slate-950 shadow-soft">
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-royal/85 text-slate-950">
             <Utensils className="size-5" />
           </span>
           <span className={collapsed ? 'sr-only' : 'truncate'}>KitchenFlow</span>
         </Link>
           <button
-            className="grid size-9 place-items-center rounded-xl text-muted transition hover:bg-panel-muted hover:text-ink"
+            className="grid size-9 place-items-center rounded-lg text-muted transition hover:bg-panel-muted hover:text-ink"
             onClick={() => setCollapsed((value) => !value)}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
@@ -202,7 +257,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
 
-        <div className={`mt-6 rounded-2xl border border-line bg-panel-muted/80 p-3 ${collapsed ? 'px-2' : ''}`}>
+        <div className={`mt-6 rounded-lg border border-line bg-panel-muted/45 p-3 ${collapsed ? 'px-2' : ''}`}>
           <div className="flex items-center justify-between gap-3">
             <div className={collapsed ? 'sr-only' : 'min-w-0'}>
               <p className="truncate text-sm font-bold">
@@ -216,7 +271,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
 
             {collapsed ? (
-              <span className="mx-auto grid size-9 place-items-center rounded-xl bg-royal/10 text-xs font-black text-royal">
+              <span className="mx-auto grid size-9 place-items-center rounded-lg bg-panel text-xs font-black text-muted ring-1 ring-line">
                 {workspaceName(user?.restaurant?.name).slice(0, 2).toUpperCase()}
               </span>
             ) : (
@@ -225,7 +280,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="mt-6 max-h-[calc(100vh-18rem)] space-y-3 overflow-y-auto pr-1">
+        <nav className="mt-6 max-h-[calc(100vh-18rem)] space-y-2 overflow-y-auto pr-1">
           {navSections.map((section) => {
             const items = section.items.filter((item) => user && item.roles.includes(user.role));
             if (!items.length) return null;
@@ -233,7 +288,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             const expanded = collapsed || expandedSections[section.label] || sectionActive;
 
             return (
-              <div key={section.label} className="rounded-lg border border-line/70 bg-panel-muted/25 p-1">
+              <div key={section.label} className="rounded-lg p-1">
                 {!collapsed ? (
                   <button
                     className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-[11px] font-bold uppercase tracking-[0.12em] text-muted/80 transition hover:bg-panel-muted hover:text-ink"
@@ -262,7 +317,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             title={collapsed ? `${section.label}: ${item.label}` : undefined}
                             className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
                               active
-                                ? 'bg-royal/90 text-slate-950'
+                                ? 'bg-panel-muted text-ink ring-1 ring-line'
                                 : 'text-muted hover:bg-panel-muted hover:text-ink'
                             }`}
                           >
@@ -283,7 +338,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="absolute inset-x-4 bottom-5">
-          <div className="mb-3 rounded-2xl border border-line bg-panel-muted/80 p-3">
+          <div className="mb-3 rounded-lg border border-line bg-panel-muted/45 p-3">
             {collapsed ? (
               <p className="text-center text-sm font-black text-royal">{user?.fullName?.slice(0, 2).toUpperCase() ?? 'U'}</p>
             ) : (
@@ -313,22 +368,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className={`transition-all duration-300 ${collapsed ? 'lg:pl-24' : 'lg:pl-72'}`}>
-        <header className="sticky top-0 z-20 border-b border-line bg-panel/90 px-4 py-3 backdrop-blur-xl">
+        <header className="sticky top-0 z-20 border-b border-line bg-panel/95 px-4 py-3 backdrop-blur-md">
           <div className="flex flex-wrap items-center gap-3">
             <div className="hidden min-w-0 lg:block">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-royal">{activeNav?.label ?? 'Dubai ops command'}</p>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted">{context.label}</p>
               <p className="truncate text-sm font-semibold text-muted">
-                {now.toLocaleDateString('en-AE', { weekday: 'long', month: 'short', day: '2-digit' })} - {now.toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })} GST
+                {activeNav?.label ?? 'Dubai ops command'} · {now.toLocaleDateString('en-AE', { weekday: 'short', month: 'short', day: '2-digit' })} · {now.toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })} GST
               </p>
             </div>
             <div className="relative min-w-0 flex-1">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
 
               <input
-                className="h-10 w-full rounded-xl border border-line bg-panel-muted/80 pl-9 pr-3 text-sm outline-none transition focus:border-royal focus:ring-4 focus:ring-royal/10"
-                placeholder="Search orders, menus, stores, integrations..."
+                className="h-10 w-full rounded-lg border border-line bg-panel-muted/55 pl-9 pr-3 text-sm outline-none transition focus:border-royal focus:ring-2 focus:ring-royal/10"
+                placeholder={context.search}
               />
             </div>
+
+            {context.actions.map((action) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className={`hidden h-9 items-center rounded-lg border px-3 text-xs font-bold transition xl:inline-flex ${
+                  pathname === action.href ? 'border-line bg-panel-muted text-ink' : 'border-line bg-panel text-muted hover:bg-panel-muted hover:text-ink'
+                }`}
+              >
+                {action.label}
+              </Link>
+            ))}
 
             <Button
               variant="secondary"
@@ -366,67 +433,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             ) : null}
           </div>
-          <div className="mt-3 hidden flex-wrap items-center gap-2 xl:flex">
-            {[
-              ['Incident center', '/dashboard/control-center', '2'],
-              ['SLA risk queue', '/dashboard/orders', '7'],
-              ['Live wallboard', '/dashboard/mission-control', 'live'],
-              ['Automation queue', '/dashboard/automation', '18'],
-            ].map(([label, href, count]) => (
-              <Link
-                key={label}
-                href={href}
-                className="inline-flex items-center gap-2 rounded-full border border-line bg-panel-muted/55 px-3 py-1 text-xs font-bold text-muted transition hover:border-line hover:text-ink"
-              >
-                {label}
-                <span className="rounded-full bg-panel px-2 py-0.5 text-muted">{count}</span>
-              </Link>
-            ))}
-            <button
-              className="inline-flex items-center gap-2 rounded-full border border-line bg-panel-muted/35 px-3 py-1 text-xs font-bold text-muted transition hover:bg-panel-muted hover:text-ink"
-              type="button"
-              onClick={() => setTopbarExpanded((value) => !value)}
-            >
-              Secondary metrics
-              <ChevronDown className={`size-3 transition ${topbarExpanded ? 'rotate-180' : ''}`} />
-            </button>
-          </div>
-          {topbarExpanded ? (
-            <div className="mt-3 hidden rounded-lg border border-line bg-panel-muted/45 p-3 text-xs text-muted xl:grid xl:grid-cols-4 xl:gap-3">
-              {[
-                ['Optimization', '4 proposals parked'],
-                ['Dependencies', '12 mapped signals'],
-                ['Inventory forecast', 'Top SKUs only'],
-                ['Outlet model', 'Simulation paused']
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <p className="font-bold text-ink">{label}</p>
-                  <p className="mt-1">{value}</p>
-                </div>
-              ))}
-            </div>
-          ) : null}
-          <div className="mt-3 hidden items-center gap-2 border-t border-line pt-3 lg:flex">
-            <span className="mr-1 text-xs font-bold uppercase tracking-[0.14em] text-muted">Mode</span>
-            {dashboardModes.map((mode) => {
-              const active = pathname === mode.href || (mode.href !== '/dashboard' && pathname.startsWith(mode.href));
-              return (
-                <Link
-                  key={mode.label}
-                  href={mode.href}
-                  className={`inline-flex min-h-9 items-center gap-2 rounded-lg border px-3 text-xs font-bold transition ${
-                    active ? 'border-royal/30 bg-royal/90 text-slate-950' : 'border-line bg-panel-muted/35 text-muted hover:bg-panel-muted hover:text-ink'
-                  }`}
-                  title={`${mode.label} view: ${mode.focus}`}
-                >
-                  {mode.label}
-                </Link>
-              );
-            })}
-          </div>
         </header>
 
-        <main className="mx-auto max-w-[1500px] px-4 pb-24 pt-6 md:px-8 lg:pb-6">
+        <main className="mx-auto max-w-[1500px] px-4 pb-24 pt-5 md:px-7 lg:pb-7">
           {children}
         </main>
       </div>

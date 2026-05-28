@@ -4,7 +4,7 @@
 
 :root {
   color-scheme: dark;
-  --grid: rgba(255, 255, 255, .026);
+  --grid: rgba(255, 255, 255, .012);
   --color-ink: 238 245 241;
   --color-muted: 137 153 148;
   --color-line: 35 48 45;
@@ -25,16 +25,13 @@ html {
 
 body {
   margin: 0;
-  background:
-    linear-gradient(180deg, #071012 0%, rgb(var(--color-surface)) 28rem);
+  background: rgb(var(--color-surface));
   color: rgb(var(--color-ink));
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 .noise {
-  background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px);
   background-size: 44px 44px;
 }
 
@@ -59,11 +56,9 @@ body::selection {
 }
 
 .glass-panel {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .028), rgba(255, 255, 255, .012)),
-    rgb(var(--color-panel) / .92);
-  border-color: rgb(var(--color-line) / .82);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, .18);
+  background: rgb(var(--color-panel) / .96);
+  border-color: rgb(var(--color-line) / .76);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .16);
 }
 
 .live-pulse {
@@ -71,17 +66,17 @@ body::selection {
 }
 
 .live-pulse::after {
-  animation: live-ping 2.4s cubic-bezier(0, 0, .2, 1) infinite;
+  animation: live-ping 3.2s cubic-bezier(0, 0, .2, 1) infinite;
   background: currentColor;
   border-radius: 9999px;
   content: "";
   inset: -4px;
-  opacity: .14;
+  opacity: .045;
   position: absolute;
 }
 
 .activity-shimmer {
-  background: linear-gradient(90deg, transparent, rgb(var(--color-muted) / .12), transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--color-muted) / .06), transparent);
   background-size: 220% 100%;
   animation: activity-shimmer 2.8s ease-in-out infinite;
 }

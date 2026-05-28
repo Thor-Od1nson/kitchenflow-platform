@@ -6,12 +6,12 @@ import { Check, ChevronDown, Sparkles, Search, X } from 'lucide-react';
 import { cn } from './cn';
 
 const button = cva(
-  'inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        primary: 'bg-royal/90 text-slate-950 hover:bg-royal focus-visible:outline-royal',
-        secondary: 'border border-line bg-panel/80 text-ink hover:border-line hover:bg-panel-muted',
+        primary: 'bg-royal/85 text-slate-950 hover:bg-royal focus-visible:outline-royal',
+        secondary: 'border border-line bg-panel text-ink hover:bg-panel-muted',
         ghost: 'text-muted hover:bg-panel-muted hover:text-ink',
         danger: 'bg-rose-600 text-white hover:bg-rose-700'
       },
@@ -37,7 +37,7 @@ export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInp
   return (
     <input
       className={cn(
-        'h-10 w-full rounded-xl border border-line bg-panel/80 px-3 text-sm text-ink outline-none transition placeholder:text-muted focus:border-royal focus:ring-4 focus:ring-royal/10',
+        'h-10 w-full rounded-lg border border-line bg-panel px-3 text-sm text-ink outline-none transition placeholder:text-muted focus:border-royal focus:ring-2 focus:ring-royal/10',
         className,
       )}
       {...props}
@@ -55,7 +55,7 @@ export function SearchInput(props: React.InputHTMLAttributes<HTMLInputElement>) 
 }
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('glass-panel rounded-lg border', className)} {...props} />;
+  return <div className={cn('glass-panel rounded-lg border shadow-none', className)} {...props} />;
 }
 
 export function Badge({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
@@ -109,7 +109,7 @@ export function Dropdown({
   options: string[];
 }) {
   return (
-    <button className="inline-flex h-10 items-center justify-between gap-3 rounded-xl border border-line bg-panel/80 px-3 text-sm font-semibold text-ink transition hover:border-royal/50 hover:bg-panel-muted">
+    <button className="inline-flex h-10 items-center justify-between gap-3 rounded-lg border border-line bg-panel px-3 text-sm font-semibold text-ink transition hover:bg-panel-muted">
       {label}
       <ChevronDown className="size-4 text-muted" />
       <span className="sr-only">{options.join(', ')}</span>
@@ -150,7 +150,7 @@ export function Toast({
 }) {
   return (
     <div className="glass-panel flex items-start gap-3 rounded-lg border p-4">
-      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-royal/15 text-royal">
+      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-panel-muted text-muted">
         <Check className="size-4" />
       </span>
       <div>
@@ -219,11 +219,11 @@ export function OperationalStatusChip({
 }) {
   const toneClass =
     tone === 'critical'
-      ? 'border-rose-400/30 bg-rose-400/10 text-rose-200'
+      ? 'border-rose-400/20 bg-rose-400/5 text-rose-200'
       : tone === 'warning'
-        ? 'border-amber-400/30 bg-amber-400/10 text-amber-200'
+        ? 'border-amber-400/20 bg-amber-400/5 text-amber-200'
         : tone === 'good'
-          ? 'border-royal/30 bg-royal/10 text-royal'
+          ? 'border-emerald-400/20 bg-emerald-400/5 text-emerald-200'
           : 'border-line bg-panel-muted text-muted';
 
   return (
@@ -245,10 +245,10 @@ export function SlaMeter({
   detail: string;
   tone?: 'good' | 'warning' | 'critical';
 }) {
-  const barClass = tone === 'critical' ? 'from-rose-500 to-amber-300' : tone === 'warning' ? 'from-amber-400 to-royal' : 'from-royal to-cyan';
+  const barClass = tone === 'critical' ? 'bg-rose-500' : tone === 'warning' ? 'bg-amber-400' : 'bg-emerald-400';
 
   return (
-    <div className="rounded-xl border border-line bg-panel-muted/45 p-4">
+    <div className="rounded-lg border border-line bg-panel-muted/40 p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-black text-ink">{label}</p>
@@ -257,7 +257,7 @@ export function SlaMeter({
         <span className="text-sm font-black text-ink">{value}%</span>
       </div>
       <div className="mt-3 h-2 rounded-full bg-panel">
-        <div className={cn('h-full rounded-full bg-gradient-to-r', barClass)} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+        <div className={cn('h-full rounded-full', barClass)} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
       </div>
     </div>
   );
@@ -299,7 +299,7 @@ export function InsightBanner({
   return (
     <div className="rounded-lg border border-line bg-panel-muted/55 p-4">
       <div className="flex items-start gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-royal text-slate-950">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-panel text-muted ring-1 ring-line">
           <Sparkles className="size-4" />
         </span>
         <div>
@@ -320,7 +320,7 @@ export function ActivityStream({
   return (
     <div className="space-y-3">
       {items.map((item) => (
-        <div key={`${item.time}-${item.detail}`} className="flex gap-3 rounded-xl border border-line bg-panel-muted/45 p-3">
+        <div key={`${item.time}-${item.detail}`} className="flex gap-3 rounded-lg border border-line bg-panel-muted/40 p-3">
           <OperationalStatusChip label={item.time} tone={item.tone ?? 'neutral'} />
           <p className="min-w-0 text-sm font-semibold leading-6 text-ink">{item.detail}</p>
         </div>

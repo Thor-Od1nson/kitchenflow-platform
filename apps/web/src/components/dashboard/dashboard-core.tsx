@@ -294,11 +294,11 @@ export function OverviewPage() {
   const primaryKpis = (summary.data?.kpis ?? []).slice(0, 4);
 
   return (
-    <div className="space-y-8">
+    <WorkspaceShell>
       <PageHeader eyebrow="Operations desk" title="GCC operations control" action="Export report" disabledReason="Coming soon" />
       <SectionHeading title="Priority controls" detail="SLA, incident, revenue, and operational health signals remain above the fold." />
       <AsyncState loading={summary.isLoading} error={summary.isError}>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <ResponsiveCardGrid min="14rem">
           {primaryKpis.map((kpi, index) => (
             <motion.div key={kpi.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.06 }}>
               <MetricCard label={kpi.label} value={formatKpiValue(kpi.value, kpi.unit)} detail={`${percentage(kpi.delta)} vs last week`}>
@@ -308,7 +308,7 @@ export function OverviewPage() {
               </MetricCard>
             </motion.div>
           ))}
-        </div>
+        </ResponsiveCardGrid>
       </AsyncState>
       <OperationalInsightStrip />
       <ExpandableSection title="Operations Advisor" detail="AI recommendations are available after the core executive metrics, not mixed into the first row.">
@@ -332,7 +332,7 @@ export function OverviewPage() {
         <InventoryRiskPanel />
         <ChannelPanel />
       </div>
-    </div>
+    </WorkspaceShell>
   );
 }
 
@@ -1178,7 +1178,7 @@ export function MenusPage() {
 
 export function AnalyticsPage() {
   return (
-    <div className="space-y-6">
+    <WorkspaceShell>
       <PageHeader eyebrow="Analytics" title="Revenue, conversion, heatmaps, and outlet performance" action="Schedule digest" disabledReason="Coming soon" />
       <ExecutiveSummaryStrip />
       <KitchenPerformancePanel />
@@ -1199,7 +1199,7 @@ export function AnalyticsPage() {
         <PayoutReconciliationPanel />
         <OperationalAnalyticsPanel />
       </div>
-    </div>
+    </WorkspaceShell>
   );
 }
 
@@ -1235,7 +1235,7 @@ export function AutomationPage() {
 
 export function ExecutivePage() {
   return (
-    <div className="space-y-6">
+    <WorkspaceShell>
       <PageHeader eyebrow="Executive view" title="Board-ready operating confidence" action="Export board pack" disabledReason="Coming soon" />
       <ExecutiveSummaryStrip />
       <LayeredWorkspace
@@ -1273,7 +1273,7 @@ export function ExecutivePage() {
           }
         ]}
       />
-    </div>
+    </WorkspaceShell>
   );
 }
 
@@ -1689,21 +1689,21 @@ export function GovernancePage() {
 
 export function FinancePage() {
   return (
-    <div className="space-y-6">
+    <WorkspaceShell>
       <PageHeader eyebrow="Finance operations" title="Payout reconciliation, VAT readiness, refunds, and leakage control" action="Run settlement check" disabledReason="Coming soon" />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <ResponsiveCardGrid min="15rem">
         {financeSignals.map((signal) => (
           <MetricCard key={signal.title} label={signal.title} value={signal.value} detail={signal.detail}>
             <WalletCards className="size-5 text-royal" />
           </MetricCard>
         ))}
-      </div>
+      </ResponsiveCardGrid>
       <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
         <PayoutReconciliationPanel />
         <SettlementComparisonPanel />
       </div>
       <EnterpriseEconomicPanel />
-    </div>
+    </WorkspaceShell>
   );
 }
 
@@ -2899,8 +2899,8 @@ function MissionControlWallboard() {
         <OperationalStatusChip label="live map" tone="good" pulse />
       </div>
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
-        <div className="min-h-[360px] rounded-xl border border-line bg-panel-muted/45 p-4">
-          <div className="grid h-full gap-3 md:grid-cols-2">
+        <div className="rounded-lg border border-line bg-panel-muted/40 p-4">
+          <div className="grid gap-3 md:grid-cols-2">
             {networkRegions.map((region, index) => (
               <div key={region.region} className="relative overflow-hidden rounded-xl border border-line bg-panel p-4">
                 <span className={`absolute right-4 top-4 size-3 rounded-full ${region.status === 'watch' ? 'bg-amber-300' : 'bg-royal'} shadow-soft`} />
@@ -3440,12 +3440,12 @@ function PageHeader({
   disabledReason?: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-lg border border-line bg-panel/80 p-4 md:p-5">
+    <div className="relative overflow-hidden rounded-lg border border-line bg-panel p-4 md:p-5">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted">{eyebrow}</p>
         <h1 className="mt-1 text-2xl font-black tracking-tight">{title}</h1>
-        <p className="mt-2 max-w-2xl text-sm font-medium text-muted">Aggregator sync, SLA controls, payout visibility, and outlet accountability for GCC operations.</p>
+        <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-muted">Primary workflow first, operating context second, and deeper intelligence available through structured layers.</p>
       </div>
       {action ? (
         <Button onClick={onAction} disabled={Boolean(disabledReason) || !onAction} title={disabledReason}>
@@ -3453,6 +3453,18 @@ function PageHeader({
         </Button>
       ) : null}
       </div>
+    </div>
+  );
+}
+
+function WorkspaceShell({ children }: { children: React.ReactNode }) {
+  return <div className="space-y-5 md:space-y-6">{children}</div>;
+}
+
+function ResponsiveCardGrid({ children, min = '15rem' }: { children: React.ReactNode; min?: string }) {
+  return (
+    <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(min(${min}, 100%), 1fr))` }}>
+      {children}
     </div>
   );
 }
@@ -3480,7 +3492,7 @@ function LayeredWorkspace({
               onClick={() => setActiveLabel(tab.label)}
               className={`min-h-9 rounded-lg border px-3 text-sm font-bold transition ${
                 activeTab?.label === tab.label
-                  ? 'border-royal/30 bg-royal/90 text-slate-950'
+                  ? 'border-line bg-panel-muted text-ink'
                   : 'border-line bg-panel-muted/40 text-muted hover:bg-panel-muted hover:text-ink'
               }`}
             >
@@ -3962,15 +3974,17 @@ function ChannelPanel() {
     <Card className="p-5">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-royal">Delivery mix</p>
       <h2 className="mt-1 text-xl font-black">Channel breakdown</h2>
-      <div className="mt-5 grid gap-3 md:grid-cols-4">
+      <div className="mt-5">
         <AsyncState loading={summary.isLoading} error={summary.isError} empty={!summary.data?.channelBreakdown.length}>
-          {summary.data?.channelBreakdown.map((channel) => (
-            <div key={channel.channel} className="rounded-xl border border-line bg-panel-muted/45 p-4 transition hover:border-royal/40">
-              <p className="text-sm font-bold capitalize">{channel.channel.replace('_', ' ')}</p>
-              <p className="mt-2 text-2xl font-black">{formatMoney(channel.revenue)}</p>
-              <p className="text-sm text-muted">{channel.orders} orders</p>
-            </div>
-          ))}
+          <ResponsiveCardGrid min="12rem">
+            {summary.data?.channelBreakdown.map((channel) => (
+              <div key={channel.channel} className="min-w-0 rounded-lg border border-line bg-panel-muted/40 p-4 transition hover:bg-panel-muted/60">
+                <p className="truncate text-sm font-bold capitalize">{channel.channel.replace('_', ' ')}</p>
+                <p className="mt-2 break-words text-xl font-black leading-tight sm:text-2xl">{formatMoney(channel.revenue)}</p>
+                <p className="mt-1 text-sm text-muted">{channel.orders} orders</p>
+              </div>
+            ))}
+          </ResponsiveCardGrid>
         </AsyncState>
       </div>
     </Card>
