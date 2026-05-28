@@ -46,63 +46,85 @@ import { useOpsStore } from '@/store/ops-store';
 type NavItem = { href: string; label: string; icon: typeof Home; roles: Role[] };
 type NavSection = { label: string; items: NavItem[] };
 
-const navSections: NavSection[] = [
-  {
-    label: 'Operations',
-    items: [
-      { href: '/dashboard', label: 'Overview', icon: Home, roles: ['owner', 'manager'] },
-      { href: '/dashboard/orders', label: 'Orders', icon: Command, roles: ['owner', 'manager', 'kitchen', 'support'] },
-      { href: '/dashboard/control-center', label: 'Control center', icon: Gauge, roles: ['owner'] },
-      { href: '/dashboard/mission-control', label: 'Live wallboard', icon: Gauge, roles: ['owner', 'manager'] },
-      { href: '/dashboard/inventory', label: 'Inventory', icon: Boxes, roles: ['owner', 'manager', 'support'] },
-      { href: '/dashboard/integrations', label: 'Aggregators', icon: Plug, roles: ['owner', 'manager'] },
-      { href: '/dashboard/menus', label: 'Menus', icon: MenuSquare, roles: ['owner', 'manager', 'support'] },
-      { href: '/dashboard/incidents', label: 'Incidents', icon: MessageSquareWarning, roles: ['owner', 'manager', 'support'] }
-    ]
-  },
+const primaryNav: NavItem[] = [
+  { href: '/dashboard', label: 'Overview', icon: Home, roles: ['owner', 'manager'] },
+  { href: '/dashboard/orders', label: 'Orders', icon: Command, roles: ['owner', 'manager', 'kitchen', 'support'] },
+  { href: '/dashboard/control-center', label: 'Control Center', icon: Gauge, roles: ['owner'] },
+  { href: '/dashboard/inventory', label: 'Inventory', icon: Boxes, roles: ['owner', 'manager', 'support'] },
+  { href: '/dashboard/integrations', label: 'Aggregators', icon: Plug, roles: ['owner', 'manager'] },
+  { href: '/dashboard/finance', label: 'Finance', icon: WalletCards, roles: ['owner', 'manager'] },
+  { href: '/dashboard/incidents', label: 'Incidents', icon: MessageSquareWarning, roles: ['owner', 'manager', 'support'] }
+];
+
+const workspaceGroups: NavSection[] = [
   {
     label: 'Intelligence',
     items: [
-      { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3, roles: ['owner', 'manager', 'support'] },
       { href: '/dashboard/optimization', label: 'Optimization', icon: BarChart3, roles: ['owner', 'manager'] },
       { href: '/dashboard/planning', label: 'Planning', icon: Landmark, roles: ['owner', 'manager'] },
-      { href: '/dashboard/digital-twin', label: 'Digital twin', icon: BrainCircuit, roles: ['owner', 'manager'] },
-      { href: '/dashboard/intelligence-mesh', label: 'Intelligence mesh', icon: GitBranch, roles: ['owner', 'manager', 'support'] },
-      { href: '/dashboard/scenarios', label: 'Scenarios', icon: CalendarClock, roles: ['owner', 'manager'] },
-      { href: '/dashboard/copilot', label: 'Ops intelligence', icon: Bot, roles: ['owner', 'manager', 'support'] },
-      { href: '/dashboard/knowledge', label: 'Knowledge', icon: ClipboardList, roles: ['owner', 'manager', 'support'] }
-    ]
-  },
-  {
-    label: 'Enterprise',
-    items: [
-      { href: '/dashboard/governance', label: 'Governance', icon: ShieldCheck, roles: ['owner'] },
+      { href: '/dashboard/intelligence-mesh', label: 'Dependencies', icon: GitBranch, roles: ['owner', 'manager', 'support'] },
       { href: '/dashboard/operations-fabric', label: 'Workflows', icon: Workflow, roles: ['owner', 'manager', 'support'] },
-      { href: '/dashboard/automation', label: 'Automation', icon: Workflow, roles: ['owner', 'manager'] },
-      { href: '/dashboard/finance', label: 'Finance', icon: WalletCards, roles: ['owner', 'manager'] },
-      { href: '/dashboard/economics', label: 'Economics', icon: DollarSign, roles: ['owner', 'manager'] },
-      { href: '/dashboard/customers', label: 'Customers', icon: Users, roles: ['owner', 'manager', 'support'] },
-      { href: '/dashboard/integrations', label: 'Integrations', icon: Plug, roles: ['owner', 'manager'] },
-      { href: '/dashboard/collaboration', label: 'Approvals', icon: Users, roles: ['owner', 'manager', 'support'] },
-      { href: '/dashboard/stores', label: 'Stores', icon: Store, roles: ['owner', 'manager'] },
-      { href: '/dashboard/audit', label: 'Audit log', icon: ClipboardList, roles: ['owner', 'manager', 'support'] },
-      { href: '/dashboard/notifications', label: 'Notifications', icon: Bell, roles: ['owner', 'manager', 'support'] },
-      { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['owner'] }
+      { href: '/dashboard/intelligence-mesh', label: 'Intelligence Mesh', icon: BrainCircuit, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/analytics', label: 'Forecasting', icon: BarChart3, roles: ['owner', 'manager', 'support'] }
     ]
   },
   {
     label: 'Executive',
     items: [
+      { href: '/dashboard/executive', label: 'Executive', icon: Gauge, roles: ['owner', 'manager'] },
       { href: '/dashboard/boardroom', label: 'Boardroom', icon: Landmark, roles: ['owner', 'manager'] },
-      { href: '/dashboard/executive', label: 'Mission control', icon: Gauge, roles: ['owner', 'manager'] },
-      { href: '/dashboard/consciousness', label: 'Consciousness', icon: BrainCircuit, roles: ['owner', 'manager'] },
-      { href: '/dashboard/temporal', label: 'Temporal intelligence', icon: CalendarClock, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/governance', label: 'Governance', icon: ShieldCheck, roles: ['owner'] },
+      { href: '/dashboard/economics', label: 'Economics', icon: DollarSign, roles: ['owner', 'manager'] },
+      { href: '/dashboard/scenarios', label: 'Scenarios', icon: CalendarClock, roles: ['owner', 'manager'] }
+    ]
+  },
+  {
+    label: 'Enterprise',
+    items: [
       { href: '/dashboard/workforce', label: 'Workforce', icon: Users, roles: ['owner', 'manager'] },
-      { href: '/dashboard/network', label: 'Network', icon: Network, roles: ['owner', 'manager', 'support'] }
+      { href: '/dashboard/collaboration', label: 'Collaboration', icon: Users, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/knowledge', label: 'Knowledge', icon: ClipboardList, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/network', label: 'Network', icon: Network, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/mission-control', label: 'Mission Control', icon: Gauge, roles: ['owner', 'manager'] }
+    ]
+  },
+  {
+    label: 'Advanced Systems',
+    items: [
+      { href: '/dashboard/digital-twin', label: 'Digital Twin', icon: BrainCircuit, roles: ['owner', 'manager'] },
+      { href: '/dashboard/temporal', label: 'Temporal', icon: CalendarClock, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/consciousness', label: 'Consciousness', icon: BrainCircuit, roles: ['owner', 'manager'] },
+      { href: '/dashboard/automation', label: 'Automation', icon: Workflow, roles: ['owner', 'manager'] },
+      { href: '/dashboard/operations-fabric', label: 'Operations Fabric', icon: GitBranch, roles: ['owner', 'manager', 'support'] }
     ]
   }
 ];
-const nav = navSections.flatMap((section) => section.items);
+
+const overflowTools: NavSection[] = [
+  {
+    label: 'Operational Tools',
+    items: [
+      { href: '/dashboard/menus', label: 'Menus', icon: MenuSquare, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/customers', label: 'Customers', icon: Users, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/stores', label: 'Stores', icon: Store, roles: ['owner', 'manager'] },
+      { href: '/dashboard/copilot', label: 'Ops Intelligence', icon: Bot, roles: ['owner', 'manager', 'support'] }
+    ]
+  },
+  {
+    label: 'Administration',
+    items: [
+      { href: '/dashboard/notifications', label: 'Notifications', icon: Bell, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/audit', label: 'Audit Log', icon: ClipboardList, roles: ['owner', 'manager', 'support'] },
+      { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['owner'] }
+    ]
+  }
+];
+
+const allNavItems = [
+  ...primaryNav,
+  ...workspaceGroups.flatMap((section) => section.items),
+  ...overflowTools.flatMap((section) => section.items)
+];
 
 const roleLabels: Record<Role, string> = {
   owner: 'Regional Operations Director',
@@ -183,16 +205,187 @@ function topbarContext(pathname: string) {
   };
 }
 
+const SIDEBAR_STATE_KEY = 'kitchenflow.sidebar.workspace-groups';
+
+function readSidebarState() {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(SIDEBAR_STATE_KEY) ?? '{}') as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+}
+
+function navItemActive(pathname: string, item: NavItem) {
+  return pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+}
+
+function SidebarNavLink({
+  item,
+  active,
+  collapsed,
+  socketStatus
+}: {
+  item: NavItem;
+  active: boolean;
+  collapsed: boolean;
+  socketStatus?: string;
+}) {
+  return (
+    <Link
+      href={item.href}
+      title={collapsed ? item.label : undefined}
+      className={`group flex h-9 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition ${
+        active ? 'bg-panel-muted text-ink ring-1 ring-line' : 'text-muted hover:bg-panel-muted hover:text-ink'
+      }`}
+    >
+      <item.icon className="size-4 shrink-0" />
+      <span className={collapsed ? 'sr-only' : 'truncate'}>{item.label}</span>
+      {!collapsed && item.href === '/dashboard/orders' && socketStatus === 'connected' ? (
+        <span className="ml-auto size-1.5 rounded-full bg-emerald-400" />
+      ) : null}
+    </Link>
+  );
+}
+
+function SidebarSectionDropdown({
+  section,
+  pathname,
+  collapsed,
+  expanded,
+  onToggle
+}: {
+  section: NavSection;
+  pathname: string;
+  collapsed: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const sectionActive = section.items.some((item) => navItemActive(pathname, item));
+  const visible = collapsed ? false : expanded;
+  const SectionIcon = section.items[0]?.icon ?? ChevronDown;
+
+  return (
+    <div className="rounded-lg">
+      <button
+        className={`flex h-9 w-full items-center justify-between rounded-lg px-3 text-left text-xs font-bold uppercase tracking-[0.12em] transition ${
+          sectionActive ? 'bg-panel-muted text-ink' : 'text-muted hover:bg-panel-muted hover:text-ink'
+        }`}
+        type="button"
+        onClick={onToggle}
+        title={collapsed ? section.label : undefined}
+      >
+        <span className={collapsed ? 'sr-only' : 'truncate'}>{section.label}</span>
+        {collapsed ? <SectionIcon className="size-4 text-muted" /> : <ChevronDown className={`size-3 transition ${visible ? 'rotate-180' : ''}`} />}
+      </button>
+      <AnimatePresence initial={false}>
+        {visible ? (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-1 max-h-64 space-y-1 overflow-y-auto border-l border-line/70 pl-2">
+              {section.items.map((item) => (
+                <SidebarNavLink key={`${section.label}-${item.label}-${item.href}`} item={item} active={navItemActive(pathname, item)} collapsed={false} />
+              ))}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function WorkspaceOverflowMenu({
+  sections,
+  pathname,
+  role
+}: {
+  sections: NavSection[];
+  pathname: string;
+  role?: Role;
+}) {
+  const [open, setOpen] = useState(false);
+  const visibleSections = sections
+    .map((section) => ({ ...section, items: section.items.filter((item) => role && item.roles.includes(role)) }))
+    .filter((section) => section.items.length);
+
+  if (!visibleSections.length) return null;
+
+  return (
+    <div className="relative">
+      <button
+        className="flex h-9 w-full items-center justify-between rounded-lg border border-line bg-panel-muted/35 px-3 text-sm font-bold text-muted transition hover:bg-panel-muted hover:text-ink"
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+      >
+        More tools
+        <ChevronDown className={`size-3 transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open ? (
+        <div className="absolute bottom-11 left-0 z-50 max-h-80 w-full overflow-y-auto rounded-lg border border-line bg-panel p-2 shadow-none">
+          {visibleSections.map((section) => (
+            <div key={section.label} className="py-1">
+              <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted">{section.label}</p>
+              <div className="space-y-1">
+                {section.items.map((item) => (
+                  <Link
+                    key={`${section.label}-${item.href}`}
+                    href={item.href}
+                    className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold transition ${
+                      navItemActive(pathname, item) ? 'bg-panel-muted text-ink' : 'text-muted hover:bg-panel-muted hover:text-ink'
+                    }`}
+                    onClick={() => setOpen(false)}
+                  >
+                    <item.icon className="size-4 shrink-0" />
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ContextualToolbar({
+  actions,
+  pathname
+}: {
+  actions: Array<{ label: string; href: string }>;
+  pathname: string;
+}) {
+  const visibleActions = actions.slice(0, 2);
+  if (!visibleActions.length) return null;
+
+  return (
+    <div className="hidden shrink-0 items-center gap-2 xl:flex">
+      {visibleActions.map((action) => (
+        <Link
+          key={action.href}
+          href={action.href}
+          className={`inline-flex h-9 items-center rounded-lg border px-3 text-xs font-bold transition ${
+            pathname === action.href ? 'border-line bg-panel-muted text-ink' : 'border-line bg-panel text-muted hover:bg-panel-muted hover:text-ink'
+          }`}
+        >
+          {action.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [now, setNow] = useState(() => new Date());
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    Operations: true,
-    Intelligence: true,
-    Enterprise: false,
-    Executive: false
-  });
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [sidebarStateReady, setSidebarStateReady] = useState(false);
   const { darkMode, toggleDarkMode } = useOpsStore();
   const notifications = useOpsStore((state) => state.notifications);
   const socketStatus = useOpsStore((state) => state.socketStatus);
@@ -202,9 +395,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const markAllRead = useOpsStore((state) => state.markAllRead);
   const { user, logout } = useAuth();
 
-  const visibleNav = nav.filter((item) => user && item.roles.includes(user.role));
+  const visiblePrimaryNav = primaryNav.filter((item) => user && item.roles.includes(user.role));
+  const visibleWorkspaceGroups = workspaceGroups
+    .map((section) => ({ ...section, items: section.items.filter((item) => user && item.roles.includes(user.role)) }))
+    .filter((section) => section.items.length);
+  const visibleNav = allNavItems.filter((item) => user && item.roles.includes(user.role));
   const activeNav = visibleNav.find((item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)));
-  const visibleMobileNav = visibleNav.filter((item) => ['/dashboard', '/dashboard/orders', '/dashboard/control-center', '/dashboard/mission-control'].includes(item.href)).slice(0, 4);
+  const visibleMobileNav = visiblePrimaryNav.filter((item) => ['/dashboard', '/dashboard/orders', '/dashboard/control-center', '/dashboard/inventory'].includes(item.href)).slice(0, 4);
   const context = topbarContext(pathname);
 
   useOperationsSocket();
@@ -212,6 +409,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     document.documentElement.classList.toggle('light', !darkMode);
   }, [darkMode]);
+
+  useEffect(() => {
+    setExpandedSections(readSidebarState());
+    setSidebarStateReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!sidebarStateReady) return;
+    window.localStorage.setItem(SIDEBAR_STATE_KEY, JSON.stringify(expandedSections));
+  }, [expandedSections, sidebarStateReady]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
@@ -280,61 +487,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="mt-6 max-h-[calc(100vh-18rem)] space-y-2 overflow-y-auto pr-1">
-          {navSections.map((section) => {
-            const items = section.items.filter((item) => user && item.roles.includes(user.role));
-            if (!items.length) return null;
-            const sectionActive = items.some((item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href)));
-            const expanded = collapsed || expandedSections[section.label] || sectionActive;
+        <nav className="mt-6 max-h-[calc(100vh-18rem)] space-y-3 overflow-y-auto pr-1">
+          <div className="space-y-1">
+            {!collapsed ? (
+              <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted">Primary Operations</p>
+            ) : null}
+            {visiblePrimaryNav.map((item) => (
+              <SidebarNavLink
+                key={item.href}
+                item={item}
+                active={navItemActive(pathname, item)}
+                collapsed={collapsed}
+                socketStatus={socketStatus}
+              />
+            ))}
+          </div>
 
-            return (
-              <div key={section.label} className="rounded-lg p-1">
-                {!collapsed ? (
-                  <button
-                    className="flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-[11px] font-bold uppercase tracking-[0.12em] text-muted/80 transition hover:bg-panel-muted hover:text-ink"
-                    type="button"
-                    onClick={() => setExpandedSections((current) => ({ ...current, [section.label]: !expandedSections[section.label] }))}
-                  >
-                    {section.label}
-                    <ChevronDown className={`size-3 transition ${expanded ? 'rotate-180' : ''}`} />
-                  </button>
-                ) : null}
-                <AnimatePresence initial={false}>
-                  {expanded ? (
-                    <motion.div
-                      initial={collapsed ? false : { height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="space-y-1 overflow-hidden"
-                    >
-                      {items.map((item) => {
-                        const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-
-                        return (
-                          <Link
-                            key={`${section.label}-${item.href}`}
-                            href={item.href}
-                            title={collapsed ? `${section.label}: ${item.label}` : undefined}
-                            className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
-                              active
-                                ? 'bg-panel-muted text-ink ring-1 ring-line'
-                                : 'text-muted hover:bg-panel-muted hover:text-ink'
-                            }`}
-                          >
-                            <item.icon className="size-4 shrink-0" />
-                            <span className={collapsed ? 'sr-only' : 'truncate'}>{item.label}</span>
-                            {!collapsed && item.href === '/dashboard/orders' && socketStatus === 'connected' ? (
-                              <span className="ml-auto size-1.5 rounded-full bg-emerald-400" />
-                            ) : null}
-                          </Link>
-                        );
-                      })}
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-              </div>
-            );
-          })}
+          <div className="space-y-1 border-t border-line/70 pt-3">
+            {!collapsed ? (
+              <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted">Workspace Groups</p>
+            ) : null}
+            {visibleWorkspaceGroups.map((section) => (
+              <SidebarSectionDropdown
+                key={section.label}
+                section={section}
+                pathname={pathname}
+                collapsed={collapsed}
+                expanded={Boolean(expandedSections[section.label])}
+                onToggle={() => setExpandedSections((current) => ({ ...current, [section.label]: !current[section.label] }))}
+              />
+            ))}
+          </div>
         </nav>
 
         <div className="absolute inset-x-4 bottom-5">
@@ -364,16 +547,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <LogOut className="size-4" />
             <span className={collapsed ? 'sr-only' : ''}>Logout</span>
           </Button>
+          {!collapsed ? (
+            <div className="mt-3">
+              <WorkspaceOverflowMenu sections={overflowTools} pathname={pathname} role={user?.role} />
+            </div>
+          ) : null}
         </div>
       </aside>
 
       <div className={`transition-all duration-300 ${collapsed ? 'lg:pl-24' : 'lg:pl-72'}`}>
         <header className="sticky top-0 z-20 border-b border-line bg-panel/95 px-4 py-3 backdrop-blur-md">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-nowrap items-center gap-3">
             <div className="hidden min-w-0 lg:block">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted">{context.label}</p>
               <p className="truncate text-sm font-semibold text-muted">
-                {activeNav?.label ?? 'Dubai ops command'} · {now.toLocaleDateString('en-AE', { weekday: 'short', month: 'short', day: '2-digit' })} · {now.toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })} GST
+                {activeNav?.label ?? 'Dubai ops command'} - {now.toLocaleDateString('en-AE', { weekday: 'short', month: 'short', day: '2-digit' })} - {now.toLocaleTimeString('en-AE', { hour: '2-digit', minute: '2-digit' })} GST
               </p>
             </div>
             <div className="relative min-w-0 flex-1">
@@ -385,17 +573,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               />
             </div>
 
-            {context.actions.map((action) => (
-              <Link
-                key={action.href}
-                href={action.href}
-                className={`hidden h-9 items-center rounded-lg border px-3 text-xs font-bold transition xl:inline-flex ${
-                  pathname === action.href ? 'border-line bg-panel-muted text-ink' : 'border-line bg-panel text-muted hover:bg-panel-muted hover:text-ink'
-                }`}
-              >
-                {action.label}
-              </Link>
-            ))}
+            <ContextualToolbar actions={context.actions} pathname={pathname} />
 
             <Button
               variant="secondary"
